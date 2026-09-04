@@ -1,0 +1,626 @@
+{
+ "cycle": "20260903.160000",
+ "ef5": {
+  "qpeaccum_nowcast_min_n.png": {
+   "bounds": [
+    13.674999999999985,
+    -92.87500000000003,
+    18.64999999999999,
+    -88.11666666666669
+   ],
+   "product": "qpeaccum",
+   "mode": "nowcast",
+   "stat": "min",
+   "domain": "n"
+  },
+  "qpeaccum_nowcast_median_n.png": {
+   "bounds": [
+    13.674999999999985,
+    -92.87500000000003,
+    18.64999999999999,
+    -88.11666666666669
+   ],
+   "product": "qpeaccum",
+   "mode": "nowcast",
+   "stat": "median",
+   "domain": "n"
+  },
+  "qpeaccum_nowcast_max_n.png": {
+   "bounds": [
+    13.674999999999985,
+    -92.87500000000003,
+    18.64999999999999,
+    -88.11666666666669
+   ],
+   "product": "qpeaccum",
+   "mode": "nowcast",
+   "stat": "max",
+   "domain": "n"
+  },
+  "qpeaccum_forecast_min_n.png": {
+   "bounds": [
+    13.674999999999985,
+    -92.87500000000003,
+    18.64999999999999,
+    -88.11666666666669
+   ],
+   "product": "qpeaccum",
+   "mode": "forecast",
+   "stat": "min",
+   "domain": "n"
+  },
+  "qpeaccum_forecast_median_n.png": {
+   "bounds": [
+    13.674999999999985,
+    -92.87500000000003,
+    18.64999999999999,
+    -88.11666666666669
+   ],
+   "product": "qpeaccum",
+   "mode": "forecast",
+   "stat": "median",
+   "domain": "n"
+  },
+  "qpeaccum_forecast_max_n.png": {
+   "bounds": [
+    13.674999999999985,
+    -92.87500000000003,
+    18.64999999999999,
+    -88.11666666666669
+   ],
+   "product": "qpeaccum",
+   "mode": "forecast",
+   "stat": "max",
+   "domain": "n"
+  },
+  "maxunitq_nowcast_min_n.png": {
+   "bounds": [
+    13.674999999999985,
+    -92.87500000000003,
+    18.64999999999999,
+    -88.11666666666669
+   ],
+   "product": "maxunitq",
+   "mode": "nowcast",
+   "stat": "min",
+   "domain": "n"
+  },
+  "maxunitq_nowcast_median_n.png": {
+   "bounds": [
+    13.674999999999985,
+    -92.87500000000003,
+    18.64999999999999,
+    -88.11666666666669
+   ],
+   "product": "maxunitq",
+   "mode": "nowcast",
+   "stat": "median",
+   "domain": "n"
+  },
+  "maxunitq_nowcast_max_n.png": {
+   "bounds": [
+    13.674999999999985,
+    -92.87500000000003,
+    18.64999999999999,
+    -88.11666666666669
+   ],
+   "product": "maxunitq",
+   "mode": "nowcast",
+   "stat": "max",
+   "domain": "n"
+  },
+  "maxunitq_forecast_min_n.png": {
+   "bounds": [
+    13.674999999999985,
+    -92.87500000000003,
+    18.64999999999999,
+    -88.11666666666669
+   ],
+   "product": "maxunitq",
+   "mode": "forecast",
+   "stat": "min",
+   "domain": "n"
+  },
+  "maxunitq_forecast_median_n.png": {
+   "bounds": [
+    13.674999999999985,
+    -92.87500000000003,
+    18.64999999999999,
+    -88.11666666666669
+   ],
+   "product": "maxunitq",
+   "mode": "forecast",
+   "stat": "median",
+   "domain": "n"
+  },
+  "maxunitq_forecast_max_n.png": {
+   "bounds": [
+    13.674999999999985,
+    -92.87500000000003,
+    18.64999999999999,
+    -88.11666666666669
+   ],
+   "product": "maxunitq",
+   "mode": "forecast",
+   "stat": "max",
+   "domain": "n"
+  },
+  "maxsm_nowcast_min_n.png": {
+   "bounds": [
+    13.674999999999985,
+    -92.87500000000003,
+    18.64999999999999,
+    -88.11666666666669
+   ],
+   "product": "maxsm",
+   "mode": "nowcast",
+   "stat": "min",
+   "domain": "n"
+  },
+  "maxsm_nowcast_median_n.png": {
+   "bounds": [
+    13.674999999999985,
+    -92.87500000000003,
+    18.64999999999999,
+    -88.11666666666669
+   ],
+   "product": "maxsm",
+   "mode": "nowcast",
+   "stat": "median",
+   "domain": "n"
+  },
+  "maxsm_nowcast_max_n.png": {
+   "bounds": [
+    13.674999999999985,
+    -92.87500000000003,
+    18.64999999999999,
+    -88.11666666666669
+   ],
+   "product": "maxsm",
+   "mode": "nowcast",
+   "stat": "max",
+   "domain": "n"
+  },
+  "maxsm_forecast_min_n.png": {
+   "bounds": [
+    13.674999999999985,
+    -92.87500000000003,
+    18.64999999999999,
+    -88.11666666666669
+   ],
+   "product": "maxsm",
+   "mode": "forecast",
+   "stat": "min",
+   "domain": "n"
+  },
+  "maxsm_forecast_median_n.png": {
+   "bounds": [
+    13.674999999999985,
+    -92.87500000000003,
+    18.64999999999999,
+    -88.11666666666669
+   ],
+   "product": "maxsm",
+   "mode": "forecast",
+   "stat": "median",
+   "domain": "n"
+  },
+  "maxsm_forecast_max_n.png": {
+   "bounds": [
+    13.674999999999985,
+    -92.87500000000003,
+    18.64999999999999,
+    -88.11666666666669
+   ],
+   "product": "maxsm",
+   "mode": "forecast",
+   "stat": "max",
+   "domain": "n"
+  },
+  "qpeaccum_nowcast_min_h.png": {
+   "bounds": [
+    14.389166666666682,
+    -91.26083333333337,
+    15.771666666666682,
+    -88.20000000000005
+   ],
+   "product": "qpeaccum",
+   "mode": "nowcast",
+   "stat": "min",
+   "domain": "h"
+  },
+  "qpeaccum_nowcast_median_h.png": {
+   "bounds": [
+    14.389166666666682,
+    -91.26083333333337,
+    15.771666666666682,
+    -88.20000000000005
+   ],
+   "product": "qpeaccum",
+   "mode": "nowcast",
+   "stat": "median",
+   "domain": "h"
+  },
+  "qpeaccum_nowcast_max_h.png": {
+   "bounds": [
+    14.389166666666682,
+    -91.26083333333337,
+    15.771666666666682,
+    -88.20000000000005
+   ],
+   "product": "qpeaccum",
+   "mode": "nowcast",
+   "stat": "max",
+   "domain": "h"
+  },
+  "qpeaccum_forecast_min_h.png": {
+   "bounds": [
+    14.389166666666682,
+    -91.26083333333337,
+    15.771666666666682,
+    -88.20000000000005
+   ],
+   "product": "qpeaccum",
+   "mode": "forecast",
+   "stat": "min",
+   "domain": "h"
+  },
+  "qpeaccum_forecast_median_h.png": {
+   "bounds": [
+    14.389166666666682,
+    -91.26083333333337,
+    15.771666666666682,
+    -88.20000000000005
+   ],
+   "product": "qpeaccum",
+   "mode": "forecast",
+   "stat": "median",
+   "domain": "h"
+  },
+  "qpeaccum_forecast_max_h.png": {
+   "bounds": [
+    14.389166666666682,
+    -91.26083333333337,
+    15.771666666666682,
+    -88.20000000000005
+   ],
+   "product": "qpeaccum",
+   "mode": "forecast",
+   "stat": "max",
+   "domain": "h"
+  },
+  "maxunitq_nowcast_min_h.png": {
+   "bounds": [
+    14.389166666666682,
+    -91.26083333333337,
+    15.771666666666682,
+    -88.20000000000005
+   ],
+   "product": "maxunitq",
+   "mode": "nowcast",
+   "stat": "min",
+   "domain": "h"
+  },
+  "maxunitq_nowcast_median_h.png": {
+   "bounds": [
+    14.389166666666682,
+    -91.26083333333337,
+    15.771666666666682,
+    -88.20000000000005
+   ],
+   "product": "maxunitq",
+   "mode": "nowcast",
+   "stat": "median",
+   "domain": "h"
+  },
+  "maxunitq_nowcast_max_h.png": {
+   "bounds": [
+    14.389166666666682,
+    -91.26083333333337,
+    15.771666666666682,
+    -88.20000000000005
+   ],
+   "product": "maxunitq",
+   "mode": "nowcast",
+   "stat": "max",
+   "domain": "h"
+  },
+  "maxunitq_forecast_min_h.png": {
+   "bounds": [
+    14.389166666666682,
+    -91.26083333333337,
+    15.771666666666682,
+    -88.20000000000005
+   ],
+   "product": "maxunitq",
+   "mode": "forecast",
+   "stat": "min",
+   "domain": "h"
+  },
+  "maxunitq_forecast_median_h.png": {
+   "bounds": [
+    14.389166666666682,
+    -91.26083333333337,
+    15.771666666666682,
+    -88.20000000000005
+   ],
+   "product": "maxunitq",
+   "mode": "forecast",
+   "stat": "median",
+   "domain": "h"
+  },
+  "maxunitq_forecast_max_h.png": {
+   "bounds": [
+    14.389166666666682,
+    -91.26083333333337,
+    15.771666666666682,
+    -88.20000000000005
+   ],
+   "product": "maxunitq",
+   "mode": "forecast",
+   "stat": "max",
+   "domain": "h"
+  },
+  "maxsm_nowcast_min_h.png": {
+   "bounds": [
+    14.389166666666682,
+    -91.26083333333337,
+    15.771666666666682,
+    -88.20000000000005
+   ],
+   "product": "maxsm",
+   "mode": "nowcast",
+   "stat": "min",
+   "domain": "h"
+  },
+  "maxsm_nowcast_median_h.png": {
+   "bounds": [
+    14.389166666666682,
+    -91.26083333333337,
+    15.771666666666682,
+    -88.20000000000005
+   ],
+   "product": "maxsm",
+   "mode": "nowcast",
+   "stat": "median",
+   "domain": "h"
+  },
+  "maxsm_nowcast_max_h.png": {
+   "bounds": [
+    14.389166666666682,
+    -91.26083333333337,
+    15.771666666666682,
+    -88.20000000000005
+   ],
+   "product": "maxsm",
+   "mode": "nowcast",
+   "stat": "max",
+   "domain": "h"
+  },
+  "maxsm_forecast_min_h.png": {
+   "bounds": [
+    14.389166666666682,
+    -91.26083333333337,
+    15.771666666666682,
+    -88.20000000000005
+   ],
+   "product": "maxsm",
+   "mode": "forecast",
+   "stat": "min",
+   "domain": "h"
+  },
+  "maxsm_forecast_median_h.png": {
+   "bounds": [
+    14.389166666666682,
+    -91.26083333333337,
+    15.771666666666682,
+    -88.20000000000005
+   ],
+   "product": "maxsm",
+   "mode": "forecast",
+   "stat": "median",
+   "domain": "h"
+  },
+  "maxsm_forecast_max_h.png": {
+   "bounds": [
+    14.389166666666682,
+    -91.26083333333337,
+    15.771666666666682,
+    -88.20000000000005
+   ],
+   "product": "maxsm",
+   "mode": "forecast",
+   "stat": "max",
+   "domain": "h"
+  }
+ },
+ "fim": {
+  "prob_ge_10cm.png": {
+   "bounds": [
+    14.474095391749442,
+    -90.54407143056244,
+    14.492534458093875,
+    -90.52974330178074
+   ],
+   "threshold_cm": 10
+  },
+  "prob_ge_30cm.png": {
+   "bounds": [
+    14.474095391749442,
+    -90.54407143056244,
+    14.492534458093875,
+    -90.52974330178074
+   ],
+   "threshold_cm": 30
+  },
+  "prob_ge_70cm.png": {
+   "bounds": [
+    14.474095391749442,
+    -90.54407143056244,
+    14.492534458093875,
+    -90.52974330178074
+   ],
+   "threshold_cm": 70
+  },
+  "prob_ge_100cm.png": {
+   "bounds": [
+    14.474095391749442,
+    -90.54407143056244,
+    14.492534458093875,
+    -90.52974330178074
+   ],
+   "threshold_cm": 100
+  },
+  "summary": {
+   "triggered": true,
+   "max_uq": 1.1,
+   "runs_checked": 120,
+   "members_used": 100,
+   "thresholds_m": [
+    0.1,
+    0.3,
+    0.7,
+    1.0
+   ]
+  }
+ },
+ "ibf": {
+  "warning_level.png": {
+   "bounds": [
+    14.474095391749442,
+    -90.54407143056244,
+    14.492534458093875,
+    -90.52974330178074
+   ]
+  },
+  "cell_counts": {
+   "Very low": 1225,
+   "Low": 599,
+   "Medium": 488,
+   "High": 974
+  }
+ },
+ "legends": {
+  "qpeaccum": {
+   "title": "Rainfall accumulation (mm)",
+   "colors": [
+    "#B8E186",
+    "#66BD63",
+    "#1A9850",
+    "#FFFFBF",
+    "#FDAE61",
+    "#F46D43",
+    "#D73027",
+    "#A50026",
+    "#762A83"
+   ],
+   "labels": [
+    "1 to 5",
+    "5 to 10",
+    "10 to 25",
+    "25 to 50",
+    "50 to 75",
+    "75 to 100",
+    "100 to 150",
+    "150 to 250",
+    "250 and more"
+   ]
+  },
+  "maxunitq": {
+   "title": "Max unit streamflow (m3/s per km2)",
+   "colors": [
+    "#ACACAC",
+    "#C8CE33",
+    "#F79320",
+    "#BC3F34",
+    "#D14FC8",
+    "#2B2BD5",
+    "#FFFFFF"
+   ],
+   "labels": [
+    "0.1 to 1",
+    "1 to 2",
+    "2 to 4",
+    "4 to 6",
+    "6 to 10",
+    "10 to 20",
+    "20 and more"
+   ]
+  },
+  "maxsm": {
+   "title": "Soil saturation (percent)",
+   "colors": [
+    "#F6E8C3",
+    "#DFC27D",
+    "#80CDC1",
+    "#35978F",
+    "#01665E",
+    "#003C30"
+   ],
+   "labels": [
+    "10 to 30",
+    "30 to 50",
+    "50 to 70",
+    "70 to 85",
+    "85 to 95",
+    "95 to 100"
+   ]
+  },
+  "fimprob": {
+   "title": "Probability, fraction of members",
+   "colors": [
+    "#BFDBFE",
+    "#60A5FA",
+    "#2563EB",
+    "#7C3AED"
+   ],
+   "labels": [
+    "5 to 20 percent",
+    "20 to 50",
+    "50 to 80",
+    "80 to 100"
+   ]
+  },
+  "ibf": {
+   "title": "IBF warning level (FGS matrix)",
+   "colors": [
+    "#8DC63F",
+    "#FFF200",
+    "#F7941D",
+    "#ED1C24"
+   ],
+   "labels": [
+    "Very low",
+    "Low",
+    "Medium",
+    "High"
+   ]
+  }
+ },
+ "ts": {
+  "cuenca_villalobos_1_n": {
+   "nowcast": 20,
+   "forecast": 50
+  },
+  "cuenca_villalobos_2_n": {
+   "nowcast": 20,
+   "forecast": 50
+  },
+  "cuenca_villalobos_out_n": {
+   "nowcast": 20,
+   "forecast": 50
+  },
+  "cuenca_villalobos_1_h": {
+   "nowcast": 20,
+   "forecast": 50
+  },
+  "cuenca_villalobos_2_h": {
+   "nowcast": 20,
+   "forecast": 50
+  },
+  "cuenca_villalobos_out_h": {
+   "nowcast": 20,
+   "forecast": 50
+  }
+ }
+}
