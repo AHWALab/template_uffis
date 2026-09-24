@@ -24,6 +24,12 @@ writes combined_overbank FIM products, Comoros writes pluvial_overbank
 ones; the first available variant of combined_overbank, pluvial_overbank,
 combined, pluvial is used.
 
+Multi-site regions (Comoros has 55 municipality FIM sites) write one
+folder per site (fim/<chain>/<Site>/<mode>/) and mosaic the triggered
+sites into fim/<chain>/<mode>/. The mosaic feeds the probability layers
+and the IBF grid, the per-site summaries feed the trigger facts and the
+fim/triggered_sites.geojson outline of the municipalities that fired.
+
 Comoros FIM rasters are georeferenced in the store grid (Moznet / UTM zone
 38S) and their WKT carries no EPSG code, so the geographic bounds fall back
 to a local UTM inverse transform when rasterio cannot reproject.
@@ -77,19 +83,24 @@ MODES = ["nowcast", "forecast"]
 STATS = ["min", "median", "max"]
 FIM_THRESHOLDS = ["10", "30", "70", "100"]
 FIM_VARIANTS = ["combined_overbank", "pluvial_overbank", "combined", "pluvial"]
+FIM_MODES = ["pluvial", "fluvial", "combined",
+             "pluvial_overbank", "fluvial_overbank"]
 
-# Per region viewer defaults (labels, start view). Regions without an entry
-# fall back to derived labels and to fitting the base domain on the map.
+# Per region viewer defaults (labels, start view, context layer folder).
+# Regions without an entry fall back to derived labels and to fitting the
+# base domain on the map.
 REGION_META = {
     "comoros": {
         "label": "Comoros",
         "base_label": "Comoros 30 m",
         "view": {"center": [-11.88, 43.885], "zoom": 9},
+        "gis": "gis_comoros",
     },
     "guatemala": {
         "label": "Guatemala",
         "base_label": "National 900 m",
         "view": {"center": [14.95, -90.65], "zoom": 8},
+        "gis": "gis",
     },
 }
 
@@ -228,10 +239,13 @@ def model_dirs(raw):
 
 
 def find_fim(raw, dirs):
-    """First FIM routine folder and the product variant to read.
+    """First FIM routine folder and the mosaic product variant to read.
 
     The finest model grid is searched first (FIM runs on the high
-    resolution domain only)."""
+    resolution domain only). Multi-site regions write one folder per site
+    (fim/<chain>/<Site>/<mode>/) and mosaic the triggered sites into
+    fim/<chain>/<mode>/; the mosaic is preferred. When nothing triggered
+    there is no mosaic folder and only the per-site summaries exist."""
     for md in reversed(dirs):
         froot = md / "fim"
         if not froot.is_dir():
@@ -241,7 +255,49 @@ def find_fim(raw, dirs):
                 vdir = routine / variant
                 if vdir.is_dir():
                     return routine, vdir, variant.endswith("overbank")
+            sites = [d for d in routine.iterdir()
+                     if d.is_dir() and d.name not in FIM_MODES]
+            if sites:
+                return routine, None, False
     return None, None, False
+
+
+def norm_name(s):
+    """Fold a place name for matching: ASCII, lowercase, alphanumerics.
+
+    FIM site stems use the pipeline spelling (Mledjele, BambaoYaHari) while
+    the area-of-concern polygons carry the ADM3 spelling (Mlédjélé, Bambao
+    Ya Hari); folding both sides maps them onto each other."""
+    import unicodedata
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    return "".join(c for c in s.lower() if c.isalnum())
+
+
+def write_triggered_outline(out, data_dir, gis_name, sites):
+    """Filter the region FIM commune layer down to the triggered sites.
+
+    The viewer draws the triggered municipalities of a cycle from this
+    file; the country mosaic only contains rasters of these sites. Site
+    stems are '<Region>_<Name>' and match the commune layer name field
+    after norm_name folding."""
+    src = Path(data_dir) / gis_name / "fim_communes.geojson"
+    if not src.exists():
+        return False
+    wanted = {norm_name(s.split("_", 1)[1]): s for s in sites if "_" in s}
+    gj = json.load(open(src))
+    feats = [f for f in gj["features"]
+             if norm_name(f["properties"].get("name", "")) in wanted]
+    if not feats:
+        return False
+    if len(feats) != len(wanted):
+        matched = {norm_name(f["properties"]["name"]) for f in feats}
+        print("warning: no commune polygon for",
+              sorted(wanted[k] for k in wanted.keys() - matched))
+    with open(out / "fim" / "triggered_sites.geojson", "w") as fh:
+        json.dump({"type": "FeatureCollection", "features": feats}, fh,
+                  separators=(",", ":"))
+    return True
 
 
 def main(raw_dir, data_dir, region=None):
@@ -321,18 +377,65 @@ def main(raw_dir, data_dir, region=None):
                                      "threshold_cm": int(tt)}
             print("fim", name, a.shape)
         manifest["fim"]["variant"] = fim_root.name
-        pf = routine / "pf_summary.json"
-        if pf.exists():
-            s = json.load(open(pf))
-            trig = s.get("trigger", {})
-            summary = {"triggered": trig.get("triggered"),
-                       "max_uq": trig.get("max_uq"),
-                       "runs_checked": trig.get("runs_checked"),
-                       "thresholds_m": s.get("thresholds_m")}
-            members = (s.get("routines", {}).get("PF", {}) or {}).get("members_used")
-            if members is not None:
-                summary["members_used"] = members
+
+    # Multi-site layout (Comoros): fim/<chain>/<Site>/<mode>/ per site and
+    # the triggered sites mosaicked into fim/<chain>/<mode>/. Collect the
+    # triggered sites (the ones with their own raster products) plus the
+    # per-site summaries, and export the triggered outline for the viewer.
+    if routine is not None:
+        sites, summaries = [], []
+        for site_dir in sorted(p for p in routine.iterdir() if p.is_dir()):
+            if site_dir.name in FIM_MODES:
+                continue
+            if any((site_dir / m).is_dir() and any((site_dir / m).glob("*.tif"))
+                   for m in FIM_MODES):
+                sites.append(site_dir.name)
+            ps = site_dir / "pf_summary.json"
+            if ps.exists():
+                try:
+                    summaries.append(json.load(open(ps)))
+                except ValueError:
+                    pass
+        if sites:
+            manifest["fim"]["triggered_sites"] = sites
+            if write_triggered_outline(out, data_dir, meta.get("gis", "gis"),
+                                       sites):
+                manifest["fim"]["triggered_outline"] = "triggered_sites.geojson"
+            print("fim triggered sites", len(sites))
+        if summaries:
+            def _trig(s):
+                return s.get("trigger", {}) or {}
+            uqs = [t.get("max_uq") for t in map(_trig, summaries)
+                   if t.get("max_uq") is not None]
+            n_trig = sum(1 for s in summaries if _trig(s).get("triggered"))
+            summary = {
+                "triggered": bool(n_trig),
+                "sites_total": len(summaries),
+                "sites_triggered": len(sites) if sites else n_trig,
+                "max_uq": max(uqs) if uqs else None,
+                "thresholds_m": next((s.get("thresholds_m") for s in summaries
+                                      if s.get("thresholds_m")), None),
+            }
+            members = [((s.get("routines", {}).get("P") or {})
+                        .get("members_used")) for s in summaries]
+            members = [m for m in members if m is not None]
+            if members:
+                summary["members_used"] = max(members)
             manifest["fim"]["summary"] = summary
+        else:
+            pf = routine / "pf_summary.json"
+            if pf.exists():
+                s = json.load(open(pf))
+                trig = s.get("trigger", {})
+                summary = {"triggered": trig.get("triggered"),
+                           "max_uq": trig.get("max_uq"),
+                           "runs_checked": trig.get("runs_checked"),
+                           "thresholds_m": s.get("thresholds_m")}
+                members = (s.get("routines", {}).get("PF", {})
+                           or {}).get("members_used")
+                if members is not None:
+                    summary["members_used"] = members
+                manifest["fim"]["summary"] = summary
 
     # ---------------------------------------------------------------- IBF
     # Grid-level warning per the Flood Guidance Statement matrix

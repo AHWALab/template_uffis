@@ -173,10 +173,19 @@ from Guatemala handled by prepare_cycle.py:
 - The FIM WKT is a bare LOCAL_CS (Moznet / UTM zone 38S), so the
   geographic bounds use a local UTM inverse fallback.
 - No gauge time series on the stored cycles, so the Comoros context
-  layers are the FIM site outline and the 55 FIM communes instead of the
-  Guatemala administrative set (scripts/prepare_comoros_gis.py).
+  layers are the FIM commune outlines instead of the Guatemala
+  administrative set (scripts/prepare_comoros_gis.py).
 
-Data caveat: the cycles were run on the Moimbassa (KM323) FIM store grid,
-which matches their rasters exactly, while pf_summary.json reports region
-Comoros_Vouani. The viewer frames the products with the Moimbassa
-outline; the summary label is worth checking upstream.
+Multi-site layout (55 municipality stores). The first production runs
+wrote every site into one shared folder, so each site overwrote the
+previous one and only one municipality survived per cycle (rasters from
+the last triggered site, summary from the last site processed; the
+earlier Vouani/Moimbassa file mix came from exactly that). The TITO hook
+now writes `fim/<chain>/<Site>/` per site and mosaics the triggered ones
+(per-pixel max) into `fim/<chain>/<mode>/`, which is what the viewer
+reads. prepare_cycle.py exports the triggered municipalities of each
+cycle as `data/<cycle>/fim/triggered_sites.geojson`; the viewer adds it
+as the "FIM triggered sites (N)" layer, so the outline always matches the
+extent of the probability mosaic. Commune names are ASCII-folded from the
+ADM3 spelling and matched to the site stems with accent/separator
+insensitive folding.

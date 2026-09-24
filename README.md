@@ -7,10 +7,10 @@ switched in the header:
 
 - **Comoros** (deployment default, `DEFAULT_REGION` in index.html): the
   three STREAM-Sat + StormLab cycles of 2025-12-25 11:00, 12:00 and 13:00
-  UTC, with the EF5 summary products on the 30 m grid, the pluvial flood
-  map library of the Moimbassa (Moheli) FIM site and the IBF warning
-  level. Context layers are the active FIM site outline and the 55
-  Comoros FIM communes.
+  UTC, with the EF5 summary products on the 30 m grid, the pluvial FIM
+  probability mosaic of the triggered municipalities and the IBF warning
+  level. Context layers are the triggered FIM municipalities of the
+  selected cycle and the 55 Comoros FIM communes.
 - **Guatemala** (template example): cycle 20260903.160000 with the
   national 900 m and basin 90 m EF5 products, the Santa Ines Petapa FIM
   library, IBF, gauge hydrographs and the full administrative context.
@@ -25,8 +25,8 @@ switched in the header:
    ensemble. Same three products.
 3. **Flood inundation mapping.** Flood map library probabilities:
    P(depth >= 0.10, 0.30, 0.70, 1.00 m), overbank view of the matched
-   scenarios (Santa Ines Petapa 5 m in Guatemala, Moimbassa 30 m in the
-   Comoros).
+   scenarios (Santa Ines Petapa 5 m in Guatemala, the mosaicked
+   municipality grids at 30 m in the Comoros).
 4. **Impact based forecasting.** Grid warning level on the flood risk
    matrix (Speight et al. 2018 / Flood Guidance Statement standard):
    likelihood bands of the minor (0.10 m), significant (0.30 m) and severe
@@ -47,7 +47,8 @@ data/gis/                       Guatemala context layers (GeoJSON)
 data/gis_comoros/               Comoros context layers (GeoJSON)
 data/<cycle>/manifest.json      bounds, legends, region and cycle facts
 data/<cycle>/ef5/               colorized EF5 overlays (PNG)
-data/<cycle>/fim/               flood probability overlays (PNG)
+data/<cycle>/fim/               flood probability overlays (PNG) and
+                                triggered_sites.geojson (Comoros)
 data/<cycle>/ibf/               warning level overlay (PNG)
 data/<cycle>/ts/                gauge hydrograph envelopes (Guatemala)
 ```
@@ -58,7 +59,10 @@ data/<cycle>/ts/                gauge hydrograph envelopes (Guatemala)
    `<name>_<res>/summary` folder per model domain and, when FIM ran, its
    `<name>_<res>/fim/<routine>/` products (Guatemala writes
    combined_overbank, Comoros pluvial_overbank; the script picks the
-   first available variant).
+   first available variant). Multi-site regions keep one folder per site
+   (`fim/<routine>/<Site>/`) with the triggered sites mosaicked back into
+   `fim/<routine>/<mode>/`; the script reads the mosaic and exports the
+   triggered municipalities of the cycle as a small GeoJSON outline.
 2. Run:
 
    ```
@@ -75,24 +79,25 @@ data/<cycle>/ts/                gauge hydrograph envelopes (Guatemala)
 Comoros context layers are rebuilt from the TITO FIM configuration with:
 
 ```
-python scripts/prepare_comoros_gis.py <tito>/fim_config/aoc --site KM323
+python scripts/prepare_comoros_gis.py <tito>/fim_config/aoc
 ```
-
-`--site` is the pcode of the FIM store grid the exported cycles were run
-on; it selects which outline becomes `fim_site.geojson`.
 
 ## Comoros data notes
 
-- The 20251225 11:00-13:00 cycles were run on the Moimbassa (KM323,
-  Moheli) FIM store grid (EPSG:5629, Moznet / UTM zone 38S): the product
-  rasters match `fim_store/Comoros/fim_store_KM323_Moimbassa_v1.zarr`
-  exactly. Their `pf_summary.json` still reports
-  `"region": "Comoros_Vouani"` from the site config, but the grid and
-  georeference are Moimbassa, so the viewer frames the products with the
-  Moimbassa outline. The summary mismatch is worth checking upstream.
-- The Comoros FIM rasters carry a bare `LOCAL_CS` WKT without an EPSG
-  code, so `bounds_4326()` falls back to a local UTM inverse transform
-  when rasterio cannot reproject them.
+- The 20251225 11:00-13:00 cycles were re-run with the per-site FIM
+  layout (TITO hook fix): every municipality writes to
+  `fim/<chain>/<Site>/` and the triggered sites are mosaicked (per-pixel
+  max) into `fim/<chain>/<mode>/`. The viewer shows the mosaic; the
+  trigger facts come from the per-site summaries.
+- Triggered sites: 5 at 11:00 (Fomboni, Mledjele, Moili Mdjini, Moimbao,
+  Moimbassa) and 6 at 12:00 and 13:00 (plus Djando), all on Moheli. Only
+  the triggered municipalities are part of the mosaic.
+- The FIM products are in EPSG:5629 (Moznet / UTM zone 38S) and carry a
+  bare `LOCAL_CS` WKT without an EPSG code, so `bounds_4326()` falls back
+  to a local UTM inverse transform when rasterio cannot reproject them.
+- Commune display names are ASCII-folded from the ADM3 spelling
+  (Mlédjélé -> Mledjele) and matched to the site stems with
+  `norm_name()`, which ignores accents, case and separators.
 
 ## Publishing on GitHub Pages
 

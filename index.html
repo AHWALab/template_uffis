@@ -394,27 +394,25 @@ var REGION_DEFS = {
       "project for the Comoros. Current conditions use the STREAM-Sat " +
       "satellite rainfall runs, the flood forecast uses the StormLab " +
       "rainfall ensemble. Flood inundation and IBF come from the pluvial " +
-      "flood map library of the Moimbassa (Moheli) FIM site.",
+      "flood map library, mosaicked over the triggered municipalities.",
     ccHint: "QPE based products from the EF5 runs driven by observed " +
       "satellite rainfall (STREAM-Sat), combined at the 30 m model grid.",
     ffHint: "QPF based products from the EF5 runs driven by the StormLab " +
       "rainfall forecast ensemble.",
-    fimHint: "Flood map library of the Moimbassa (Moheli) FIM site. " +
-      "Probability that water depth reaches each threshold, from the " +
-      "matched scenarios of all members (overbank view).",
-    fimNote: "Moimbassa (Moheli) FIM site, 30 m grid. When several " +
-      "thresholds are on, the last one drawn covers the ones below it.",
+    fimHint: "Flood map library of the triggered Comoros municipalities, " +
+      "mosaicked over their 30 m FIM grids. Probability that water depth " +
+      "reaches each threshold, from the matched scenarios of all members " +
+      "(overbank view).",
+    fimNote: "Mosaic of the triggered FIM municipalities, 30 m grid. When " +
+      "several thresholds are on, the last one drawn covers the ones below it.",
     qpeLabel: "Rainfall accumulation (STREAM-Sat)",
     footer: "University of Iowa IIHR and WMO. Basemaps: Esri, CARTO, " +
       "OpenStreetMap contributors. FIM site outlines from the TITO " +
       "Comoros FIM configuration.",
     ctx: [
-      { id: "fimsite", label: "FIM site outline (Moimbassa)", kind: "outline",
-        on: true, file: "fim_site.geojson",
-        info: "Outline of the Moimbassa (Moheli) FIM site that the flood inundation products of these cycles were run for." },
       { id: "fimall", label: "FIM communes (55)", kind: "outline", on: false,
         file: "fim_communes.geojson",
-        info: "All 55 Comoros communes of the FIM flood map library. Products are published for the active FIM site only." }
+        info: "All 55 Comoros communes of the FIM flood map library. Each cycle shows products only for the triggered ones." }
     ]
   }
 };
@@ -552,11 +550,19 @@ function refreshLegend() {
         " with the higher resolution model on top.") + "</div>";
   } else if (state.seg === "fim") {
     var on = ["10", "30", "70", "100"].filter(function (t) { return state.fimOn[t]; });
+    var fsum = manifest.fim && manifest.fim.summary;
+    var fimNote = def.fimNote || "";
+    if (fsum && fsum.sites_triggered != null) {
+      fimNote = "Mosaic of " + fsum.sites_triggered + " triggered FIM sites" +
+        (fsum.sites_total ? " of " + fsum.sites_total : "") +
+        ", 30 m grid. When several thresholds are on, the last one drawn " +
+        "covers the ones below it.";
+    }
     html = "<b>" + L_.fimprob.title + "</b>" +
       legendRows(L_.fimprob.colors, L_.fimprob.labels, "fimprob") +
       '<div class="note">Thresholds on: ' +
       (on.length ? on.map(function (t) { return (t / 100).toFixed(2) + " m"; }).join(", ") : "none") +
-      ". " + (def.fimNote || "") + "</div>";
+      ". " + fimNote + "</div>";
   } else {
     html = "<b>" + L_.ibf.title + "</b>" + legendRows(L_.ibf.colors, L_.ibf.labels, "ibf") +
       '<div class="note">Worst matrix cell per grid cell across the minor (0.10 m), significant (0.30 m) and severe (0.70 m) depth thresholds.</div>';
@@ -667,6 +673,10 @@ function styleCtx(d) {
     return { color: state.basemap === "sat" ? "#FFFFFF" : "#111111",
              weight: d.kind === "basin" ? 3 : 2.5, fill: false,
              dashArray: "10 6" };
+  if (d.kind === "triggered")
+    return { color: state.basemap === "sat" ? "#FFFFFF" : "#111111",
+             weight: 2.2, fill: true, fillColor: "#6b7280",
+             fillOpacity: 0.18, dashArray: "8 5" };
   return {};
 }
 
@@ -750,7 +760,7 @@ function makeCtxLayer(d, gj) {
       }
     });
   }
-  if (d.kind === "basin" || d.kind === "outline") {
+  if (d.kind === "basin" || d.kind === "outline" || d.kind === "triggered") {
     var lyr0 = L.geoJSON(gj, { style: function () { return styleCtx(d); } });
     lyr0.eachLayer(function (l) {
       if (l.feature && l.feature.properties.name)
@@ -770,7 +780,17 @@ function makeCtxLayer(d, gj) {
 function loadCtx() {
   var def = regionDef();
   var token = (loadCtx.token = (loadCtx.token || 0) + 1);
-  activeCtx = def.ctx || [];
+  var dyn = [];
+  if (manifest && manifest.fim && manifest.fim.triggered_sites &&
+      manifest.fim.triggered_sites.length) {
+    dyn.push({ id: "fimtrig", kind: "triggered", on: true,
+      label: "FIM triggered sites (" + manifest.fim.triggered_sites.length + ")",
+      url: "data/" + cycle + "/fim/" +
+           (manifest.fim.triggered_outline || "triggered_sites.geojson"),
+      info: "Municipalities where the FIM trigger fired this cycle. The " +
+        "probability mosaic covers these sites only." });
+  }
+  activeCtx = (def.ctx || []).concat(dyn);
   ctxLayers = {};
   ctxData = {};
   vulCuts = null;
@@ -790,7 +810,7 @@ function loadCtx() {
     row.appendChild(el("span", {}, d.label));
     if (d.info) row.appendChild(el("span", { class: "info", title: d.info }, "i"));
     list.appendChild(row);
-    fetch("data/" + def.gis + "/" + d.file)
+    fetch(d.url || ("data/" + def.gis + "/" + d.file))
       .then(function (r) { return r.json(); })
       .then(function (gj) {
         if (token !== loadCtx.token) return;   // region switched mid load
@@ -816,7 +836,8 @@ function syncCtx(id) {
 }
 function restyleCtx() {
   activeCtx.forEach(function (d) {
-    if (["dept", "muni", "roads", "basin", "outline"].indexOf(d.kind) >= 0 &&
+    if (["dept", "muni", "roads", "basin", "outline", "triggered"]
+        .indexOf(d.kind) >= 0 &&
         ctxLayers[d.id]) ctxLayers[d.id].setStyle(styleCtx(d));
   });
 }
@@ -1168,10 +1189,16 @@ function applyManifest(m) {
   document.getElementById("cycleSel").value = cycle;
   var chip = "Forecast cycle: <b>" + cyclePretty(cycle) + "</b>";
   if (m.fim && m.fim.summary) {
-    chip += "<br>Trigger max UQ " + m.fim.summary.max_uq +
-            " (threshold 1.0)";
-    if (m.fim.summary.members_used)
-      chip += ", " + m.fim.summary.members_used + " FIM members";
+    var fs = m.fim.summary;
+    if (fs.sites_triggered != null) {
+      chip += "<br>FIM triggered in " + fs.sites_triggered + " of " +
+              fs.sites_total + " sites";
+      if (fs.max_uq != null) chip += ", max UQ " + fs.max_uq;
+    } else {
+      chip += "<br>Trigger max UQ " + fs.max_uq + " (threshold 1.0)";
+      if (fs.members_used)
+        chip += ", " + fs.members_used + " FIM members";
+    }
   }
   document.getElementById("cycleChip").innerHTML = chip;
   buildLayerList();
