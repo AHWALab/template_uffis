@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Prepare one TITO forecast cycle for the UFFIS web viewer.
 
-Reads the raw cycle folder that the pipeline writes (guatemala_900m and
-guatemala_90m with their summary composites, plus guatemala_90m/fim) and
-produces small web assets under data/<cycle>/:
+Reads the raw cycle folder that the pipeline writes (one `<region>_<res>`
+model folder with a summary/ composite per domain, plus its fim/ routine
+folders) and produces small web assets under data/<cycle>/:
 
   ef5/<product>_<mode>_<stat>_<domain>.png   colorized overlays
   fim/prob_ge_<TT>cm.png                     flood probability overlays
@@ -12,14 +12,30 @@ produces small web assets under data/<cycle>/:
 
 Usage:
   python scripts/prepare_cycle.py <raw_cycle_dir> <repo_data_dir>
+                                  [--region NAME]
+
   e.g. python scripts/prepare_cycle.py raw/20260903.160000 data
+       python scripts/prepare_cycle.py raw/20251225.120000 data --region comoros
+
+Model domains are auto-detected: every sub folder that holds a summary/
+directory is one domain. The coarsest resolution becomes the "n" (base)
+domain, a second one becomes "h" (higher resolution overlay). Guatemala
+writes combined_overbank FIM products, Comoros writes pluvial_overbank
+ones; the first available variant of combined_overbank, pluvial_overbank,
+combined, pluvial is used.
+
+Comoros FIM rasters are georeferenced in the store grid (Moznet / UTM zone
+38S) and their WKT carries no EPSG code, so the geographic bounds fall back
+to a local UTM inverse transform when rasterio cannot reproject.
 
 The viewer (index.html) discovers cycles through data/cycles.json, which
-this script updates. Static GIS context layers live in data/gis and are
-shared by all cycles.
+this script updates. Static GIS context layers live in data/gis (Guatemala)
+and data/gis_comoros (Comoros) and are shared by all cycles of a region.
 """
+import argparse
 import json
-import sys
+import math
+import re
 from pathlib import Path
 
 import numpy as np
@@ -60,6 +76,22 @@ PRODUCTS = {
 MODES = ["nowcast", "forecast"]
 STATS = ["min", "median", "max"]
 FIM_THRESHOLDS = ["10", "30", "70", "100"]
+FIM_VARIANTS = ["combined_overbank", "pluvial_overbank", "combined", "pluvial"]
+
+# Per region viewer defaults (labels, start view). Regions without an entry
+# fall back to derived labels and to fitting the base domain on the map.
+REGION_META = {
+    "comoros": {
+        "label": "Comoros",
+        "base_label": "Comoros 30 m",
+        "view": {"center": [-11.88, 43.885], "zoom": 9},
+    },
+    "guatemala": {
+        "label": "Guatemala",
+        "base_label": "National 900 m",
+        "view": {"center": [14.95, -90.65], "zoom": 8},
+    },
+}
 
 
 def hex_to_rgb(h):
@@ -89,14 +121,80 @@ def save_png(rgba, path):
     Image.fromarray(rgba, "RGBA").save(path, optimize=True)
 
 
+# ------------------------------------------------------------- georeference
+def utm_zone_from_crs(crs):
+    """(zone, south) parsed from a CRS name or proj string, else None."""
+    try:
+        text = crs.to_string()
+    except Exception:
+        return None
+    m = re.search(r"UTM zone (\d+)([NS])", text)
+    if m:
+        return int(m.group(1)), m.group(2) == "S"
+    m = re.search(r"\+proj=utm\s+\+zone=(\d+)(?:\s+\+south)?", text)
+    if m:
+        return int(m.group(1)), "+south" in text
+    return None
+
+
+def utm_to_lonlat(zone, south, easting, northing):
+    """Inverse transverse Mercator on WGS84; metres -> degrees.
+
+    Used only when rasterio cannot reproject because the raster WKT has no
+    EPSG code (Comoros FIM products carry a bare LOCAL_CS name)."""
+    a = 6378137.0
+    f = 1.0 / 298.257223563
+    e2 = f * (2 - f)
+    ep2 = e2 / (1 - e2)
+    k0 = 0.9996
+    x = easting - 500000.0
+    y = northing
+    if south:
+        y -= 10000000.0
+    m = y / k0
+    mu = m / (a * (1 - e2 / 4 - 3 * e2 ** 2 / 64 - 5 * e2 ** 3 / 256))
+    e1 = (1 - math.sqrt(1 - e2)) / (1 + math.sqrt(1 - e2))
+    phi1 = (mu + (3 * e1 / 2 - 27 * e1 ** 3 / 32) * math.sin(2 * mu)
+            + (21 * e1 ** 2 / 16 - 55 * e1 ** 4 / 32) * math.sin(4 * mu)
+            + (151 * e1 ** 3 / 96) * math.sin(6 * mu)
+            + (1097 * e1 ** 4 / 512) * math.sin(8 * mu))
+    sp, cp, tp = math.sin(phi1), math.cos(phi1), math.tan(phi1)
+    n1 = a / math.sqrt(1 - e2 * sp ** 2)
+    r1 = a * (1 - e2) / (1 - e2 * sp ** 2) ** 1.5
+    t1, c1 = tp ** 2, ep2 * cp ** 2
+    d = x / (n1 * k0)
+    lat = phi1 - (n1 * tp / r1) * (
+        d ** 2 / 2 - (5 + 3 * t1 + 10 * c1 - 4 * c1 ** 2 - 9 * ep2) * d ** 4 / 24
+        + (61 + 90 * t1 + 298 * c1 + 45 * t1 ** 2 - 252 * ep2 - 3 * c1 ** 2) * d ** 6 / 720)
+    lon0 = math.radians(zone * 6 - 183)
+    lon = lon0 + (d - (1 + 2 * t1 + c1) * d ** 3 / 6
+                  + (5 - 2 * c1 + 28 * t1 - 3 * c1 ** 2 + 8 * ep2
+                     + 24 * t1 ** 2) * d ** 5 / 120) / cp
+    return math.degrees(lon), math.degrees(lat)
+
+
 def bounds_4326(bounds, crs):
-    if crs and crs.to_epsg() == 4326:
+    if crs is None or crs.is_geographic:
         return [bounds.bottom, bounds.left, bounds.top, bounds.right]
-    from rasterio.warp import transform_bounds
-    w, s, e, n = transform_bounds(crs, "EPSG:4326",
-                                  bounds.left, bounds.bottom,
-                                  bounds.right, bounds.top)
-    return [s, w, n, e]
+    try:
+        from rasterio.warp import transform_bounds
+        w, s, e, n = transform_bounds(crs, "EPSG:4326",
+                                      bounds.left, bounds.bottom,
+                                      bounds.right, bounds.top)
+        return [s, w, n, e]
+    except Exception:
+        pass
+    zone = utm_zone_from_crs(crs)
+    if zone:
+        z, south = zone
+        lons, lats = [], []
+        for x, y in [(bounds.left, bounds.bottom), (bounds.left, bounds.top),
+                     (bounds.right, bounds.bottom), (bounds.right, bounds.top)]:
+            lon, lat = utm_to_lonlat(z, south, x, y)
+            lons.append(lon)
+            lats.append(lat)
+        return [min(lats), min(lons), max(lats), max(lons)]
+    raise RuntimeError("cannot georeference raster: %s" % crs)
 
 
 def crop_to_valid(a, bounds):
@@ -117,14 +215,62 @@ def crop_to_valid(a, bounds):
     return a[r0:r1, c0:c1], new
 
 
-def main(raw_dir, data_dir):
+def model_dirs(raw):
+    """Summary-capable model folders, coarsest resolution first (n, h)."""
+    dirs = [d for d in sorted(raw.iterdir())
+            if d.is_dir() and (d / "summary").is_dir()]
+
+    def res(d):
+        m = re.search(r"_(\d+)m", d.name)
+        return -int(m.group(1)) if m else 0
+
+    return sorted(dirs, key=res)
+
+
+def find_fim(raw, dirs):
+    """First FIM routine folder and the product variant to read.
+
+    The finest model grid is searched first (FIM runs on the high
+    resolution domain only)."""
+    for md in reversed(dirs):
+        froot = md / "fim"
+        if not froot.is_dir():
+            continue
+        for routine in sorted(p for p in froot.iterdir() if p.is_dir()):
+            for variant in FIM_VARIANTS:
+                vdir = routine / variant
+                if vdir.is_dir():
+                    return routine, vdir, variant.endswith("overbank")
+    return None, None, False
+
+
+def main(raw_dir, data_dir, region=None):
     raw = Path(raw_dir)
     cycle = raw.name
+    dirs = model_dirs(raw)
+    if not dirs:
+        raise SystemExit("no <model>/summary folder found in %s" % raw)
+    keys = ["n", "h", "m", "p"][:len(dirs)]
+    domains = dict(zip(keys, dirs))
+
+    region_key = region or dirs[0].name.split("_")[0]
+    meta = REGION_META.get(region_key, {})
+
     out = Path(data_dir) / cycle
     (out / "ef5").mkdir(parents=True, exist_ok=True)
     (out / "fim").mkdir(exist_ok=True)
     (out / "ibf").mkdir(exist_ok=True)
-    manifest = {"cycle": cycle, "ef5": {}, "fim": {}, "ibf": {}, "legends": {}}
+    manifest = {"cycle": cycle, "region": region_key,
+                "region_label": meta.get("label", region_key.title()),
+                "ef5": {}, "fim": {}, "ibf": {}, "legends": {}}
+    if "base_label" in meta:
+        manifest["base_label"] = meta["base_label"]
+    else:
+        m = re.search(r"_(\d+m)", dirs[0].name)
+        manifest["base_label"] = "%s %s" % (manifest["region_label"],
+                                            m.group(1) if m else "")
+    if "view" in meta:
+        manifest["view"] = meta["view"]
 
     manifest["legends"] = {
         "qpeaccum": {"title": "Rainfall accumulation (mm)",
@@ -140,10 +286,8 @@ def main(raw_dir, data_dir):
     }
 
     # ---------------------------------------------------------------- EF5
-    domains = {"n": raw / "guatemala_900m" / "summary",
-               "h": raw / "guatemala_90m" / "summary"}
-    crop_cache = {}
-    for dom, sdir in domains.items():
+    for dom, mdir in domains.items():
+        sdir = mdir / "summary"
         for prod, (title, edges, colors, labels) in PRODUCTS.items():
             for mode in MODES:
                 for stat in STATS:
@@ -151,11 +295,7 @@ def main(raw_dir, data_dir):
                     if not tif.exists():
                         continue
                     a, b, crs = read_grid(tif)
-                    if dom == "h":
-                        key = a.shape
-                        if key not in crop_cache:
-                            _, cb = crop_to_valid(a, b)
-                            crop_cache[key] = cb
+                    if dom != "n":
                         a, b = crop_to_valid(a, b)
                     name = f"{prod}_{mode}_{stat}_{dom}.png"
                     save_png(colorize(a, edges, colors), out / "ef5" / name)
@@ -165,13 +305,12 @@ def main(raw_dir, data_dir):
                     print("ef5", name, a.shape)
 
     # ---------------------------------------------------------------- FIM
-    fim_dirs = list((raw / "guatemala_90m" / "fim").glob("*"))
-    fim_root = fim_dirs[0] if fim_dirs else None
+    routine, fim_root, overbank = find_fim(raw, dirs)
     probs = {}
     if fim_root:
+        suffix = "_overbank" if overbank else ""
         for tt in FIM_THRESHOLDS:
-            tif = (fim_root / "combined_overbank" /
-                   f"prob_depth_ge_{tt}cm_overbank.{cycle}.tif")
+            tif = fim_root / f"prob_depth_ge_{tt}cm{suffix}.{cycle}.tif"
             if not tif.exists():
                 continue
             a, b, crs = read_grid(tif)
@@ -181,15 +320,19 @@ def main(raw_dir, data_dir):
             manifest["fim"][name] = {"bounds": bounds_4326(b, crs),
                                      "threshold_cm": int(tt)}
             print("fim", name, a.shape)
-        pf = fim_root / "pf_summary.json"
+        manifest["fim"]["variant"] = fim_root.name
+        pf = routine / "pf_summary.json"
         if pf.exists():
             s = json.load(open(pf))
-            manifest["fim"]["summary"] = {
-                "triggered": s["trigger"]["triggered"],
-                "max_uq": s["trigger"]["max_uq"],
-                "runs_checked": s["trigger"]["runs_checked"],
-                "members_used": s["routines"]["PF"]["members_used"],
-                "thresholds_m": s["thresholds_m"]}
+            trig = s.get("trigger", {})
+            summary = {"triggered": trig.get("triggered"),
+                       "max_uq": trig.get("max_uq"),
+                       "runs_checked": trig.get("runs_checked"),
+                       "thresholds_m": s.get("thresholds_m")}
+            members = (s.get("routines", {}).get("PF", {}) or {}).get("members_used")
+            if members is not None:
+                summary["members_used"] = members
+            manifest["fim"]["summary"] = summary
 
     # ---------------------------------------------------------------- IBF
     # Grid-level warning per the Flood Guidance Statement matrix
@@ -220,8 +363,7 @@ def main(raw_dir, data_dir):
             r, g, bl = hex_to_rgb(color)
             rgba[warn == level] = (r, g, bl, 215)
         save_png(rgba, out / "ibf" / "warning_level.png")
-        tif = (fim_root / "combined_overbank" /
-               f"prob_depth_ge_10cm_overbank.{cycle}.tif")
+        tif = next(iter((fim_root).glob(f"prob_depth_ge_10cm{suffix}.*.tif")))
         _, b, crs = read_grid(tif)
         manifest["ibf"]["warning_level.png"] = {"bounds": bounds_4326(b, crs)}
         counts = {lab: int((warn == k).sum())
@@ -232,7 +374,7 @@ def main(raw_dir, data_dir):
     # ------------------------------------------------------- time series
     # One JSON per gauge and domain: the ensemble envelope (min, median,
     # max) of the member discharge series, split into the nowcast family
-    # (scampr + stream_sat runs) and the forecast family (stormlab runs).
+    # (observed rainfall runs) and the forecast family (stormlab runs).
     (out / "ts").mkdir(exist_ok=True)
     import csv as _csv
 
@@ -240,7 +382,7 @@ def main(raw_dir, data_dir):
         d = {}
         with open(path) as fh:
             rd = _csv.reader(fh)
-            header = next(rd)
+            next(rd)
             for row in rd:
                 try:
                     d[row[0]] = float(row[1])
@@ -268,10 +410,7 @@ def main(raw_dir, data_dir):
         return {"times": times, "min": mn, "median": md, "max": mx,
                 "members": len(members)}
 
-    dom_dirs = {"n": raw / "guatemala_900m", "h": raw / "guatemala_90m"}
-    for dom, droot in dom_dirs.items():
-        if not droot.exists():
-            continue
+    for dom, droot in domains.items():
         gauge_ids = set()
         for p in droot.glob("*/*/ts.*.crest.*.csv"):
             gauge_ids.add(p.name.split(".")[1])
@@ -295,34 +434,37 @@ def main(raw_dir, data_dir):
                 k: v["members"] for k, v in fam.items()}
             print("ts", g, dom, {k: v["members"] for k, v in fam.items()})
 
-    # -------------------------------------------- static gis (write once)
-    gis_dir = Path(data_dir) / "gis"
-    gis_dir.mkdir(exist_ok=True)
-    gauges_path = gis_dir / "gauges.geojson"
-    if not gauges_path.exists():
-        GAUGES = {
-            "cuenca_villalobos_1": {"name": "Rio Villalobos at Villa Nueva",
-                                    "lat": 14.487846, "lon": -90.535389},
-            "cuenca_villalobos_2": {"name": "Rio Villalobos at Petapa",
-                                    "lat": 14.486986, "lon": -90.541955},
-            "cuenca_villalobos_out": {"name": "Basin outlet, Michatoya at Palin",
-                                      "lat": 14.412713, "lon": -90.671137},
-        }
-        gj = {"type": "FeatureCollection", "features": [
-            {"type": "Feature",
-             "properties": {"id": k, "name": v["name"], "basin": "villalobos"},
-             "geometry": {"type": "Point",
-                          "coordinates": [v["lon"], v["lat"]]}}
-            for k, v in GAUGES.items()]}
-        json.dump(gj, open(gauges_path, "w"))
-        print("wrote", gauges_path)
-    basins_path = gis_dir / "basins_90m.geojson"
-    if not basins_path.exists() and (gis_dir / "basin_aoi.geojson").exists():
-        b = json.load(open(gis_dir / "basin_aoi.geojson"))
-        for f in b["features"]:
-            f["properties"] = {"id": "villalobos", "name": "Cuenca Villalobos"}
-        json.dump(b, open(basins_path, "w"))
-        print("wrote", basins_path)
+    # -------------------------------------------- static gis (Guatemala)
+    # The Comoros context layers (FIM site and commune outlines) are built
+    # by scripts/prepare_comoros_gis.py and committed under data/gis_comoros.
+    if region_key == "guatemala":
+        gis_dir = Path(data_dir) / "gis"
+        gis_dir.mkdir(exist_ok=True)
+        gauges_path = gis_dir / "gauges.geojson"
+        if not gauges_path.exists():
+            GAUGES = {
+                "cuenca_villalobos_1": {"name": "Rio Villalobos at Villa Nueva",
+                                        "lat": 14.487846, "lon": -90.535389},
+                "cuenca_villalobos_2": {"name": "Rio Villalobos at Petapa",
+                                        "lat": 14.486986, "lon": -90.541955},
+                "cuenca_villalobos_out": {"name": "Basin outlet, Michatoya at Palin",
+                                          "lat": 14.412713, "lon": -90.671137},
+            }
+            gj = {"type": "FeatureCollection", "features": [
+                {"type": "Feature",
+                 "properties": {"id": k, "name": v["name"], "basin": "villalobos"},
+                 "geometry": {"type": "Point",
+                              "coordinates": [v["lon"], v["lat"]]}}
+                for k, v in GAUGES.items()]}
+            json.dump(gj, open(gauges_path, "w"))
+            print("wrote", gauges_path)
+        basins_path = gis_dir / "basins_90m.geojson"
+        if not basins_path.exists() and (gis_dir / "basin_aoi.geojson").exists():
+            b = json.load(open(gis_dir / "basin_aoi.geojson"))
+            for f in b["features"]:
+                f["properties"] = {"id": "villalobos", "name": "Cuenca Villalobos"}
+            json.dump(b, open(basins_path, "w"))
+            print("wrote", basins_path)
 
     with open(out / "manifest.json", "w") as f:
         json.dump(manifest, f, indent=1)
@@ -340,7 +482,12 @@ def main(raw_dir, data_dir):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print(__doc__)
-        sys.exit(1)
-    main(sys.argv[1], sys.argv[2])
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("raw_dir", help="raw cycle folder written by the pipeline")
+    ap.add_argument("data_dir", help="viewer data folder, usually data")
+    ap.add_argument("--region", default=None,
+                    help="region key for labels and the start view "
+                         "(default: inferred from the model folder name, "
+                         "e.g. comoros_30m -> comoros)")
+    args = ap.parse_args()
+    main(args.raw_dir, args.data_dir, args.region)

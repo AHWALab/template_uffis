@@ -39,8 +39,17 @@
     letter-spacing: 0.4px; white-space: nowrap; overflow: hidden;
     text-overflow: ellipsis;
   }
+  .selectors {
+    margin-left: auto; display: flex; gap: 12px; align-items: center;
+    font-size: 12px; color: #445060; white-space: nowrap;
+  }
+  .selectors label { display: flex; gap: 5px; align-items: center; }
+  .selectors select {
+    padding: 4px 6px; font-size: 12px; border: 1px solid #9aa4b0;
+    border-radius: 4px; background: #fff; font-family: inherit;
+  }
   .cycle-chip {
-    margin-left: auto; text-align: right; font-size: 12px; color: #44506022;
+    margin-left: 16px; text-align: right; font-size: 12px;
     color: #445060; white-space: nowrap;
   }
   .cycle-chip b { color: var(--blue); }
@@ -193,7 +202,11 @@
   <div class="logo">UFFIS</div>
   <div class="title-block">
     <h1>UFFIS</h1>
-    <div class="sub">Urban Flash Flood Information and Forecasting System - Guatemala</div>
+    <div class="sub" id="titleSub">Urban Flash Flood Information and Forecasting System</div>
+  </div>
+  <div class="selectors">
+    <label id="regionWrap">Region <select id="regionSel"></select></label>
+    <label>Cycle <select id="cycleSel"></select></label>
   </div>
   <div class="cycle-chip" id="cycleChip">loading cycle ...</div>
 </header>
@@ -219,8 +232,8 @@
       </select>
     </div>
 
-    <div class="sect">
-      <h3>Forecast domain <span class="info" title="National shows the 900 m model for the whole country. A basin button zooms in and adds the 90 m model on top. Flood inundation and IBF exist only for the pilot basins, so those tabs switch to the basin by themselves.">i</span></h3>
+    <div class="sect" id="domainSection">
+      <h3>Forecast domain <span class="info" title="The base domain is the model grid for the whole country. A basin button zooms in and adds the higher resolution model on top. Flood inundation and IBF exist only for the pilot basins, so those tabs switch to the basin by themselves.">i</span></h3>
       <div class="hint">National scale forecast on the 900 m grid, or a
         specific basin with the 90 m model on top. Flood inundation and IBF
         exist only for the pilot basins.</div>
@@ -281,7 +294,7 @@
   </div>
 </div>
 
-<footer>
+<footer id="footerNote">
   University of Iowa IIHR and WMO. Basemaps: Esri, CARTO, OpenStreetMap
   contributors. Administrative and local layers: SEGEPLAN and INSIVUMEH
   datasets prepared for the UFFIS project.
@@ -291,9 +304,12 @@
 "use strict";
 
 /* ---------------------------------------------------------------- state */
+var DEFAULT_REGION = "comoros";   // deployment default; falls back to the
+                                  // first region listed in data/cycles.json
 var state = {
   seg: "cc",            // cc, ff, fim, ibf
-  domain: "national",   // national, or a basin id from basins_90m.geojson
+  region: null,         // key into REGION_DEFS, set from the cycle manifest
+  domain: "national",   // national, or a basin id from the region basin layer
   product: { cc: "qpeaccum", ff: "qpeaccum" },
   stat: "median",
   fimOn: { "10": false, "30": true, "70": false, "100": false },
@@ -303,8 +319,105 @@ var state = {
 };
 var manifest = null;
 var cycle = null;
+var cycleIndex = [];      // [{cycle, region}] in data/cycles.json order
 var basins = [];          // [{id, name, bounds}]
-var NATIONAL_VIEW = { center: [14.95, -90.65], zoom: 8 };
+var regionView = { center: [14.95, -90.65], zoom: 8 };
+
+/* --------------------------------------------------------- region config */
+/* Per region display language and context layers. The manifest written by
+   scripts/prepare_cycle.py carries the region key; anything missing here
+   falls back to fitting the forecast layers on the map. */
+var REGION_DEFS = {
+  guatemala: {
+    label: "Guatemala",
+    gis: "gis",
+    view: { center: [14.95, -90.65], zoom: 8 },
+    baseLabel: "National 900 m",
+    about: "Products from the TITO and EF5 forecast chain of the UFFIS " +
+      "project. Current conditions use the satellite rainfall runs " +
+      "(IMERG and SCaMPR). The flood forecast uses the StormLab rainfall " +
+      "ensemble. Flood inundation and IBF come from the flood map library " +
+      "of the Santa Ines Petapa pilot. Click a gauge on the map for its " +
+      "ensemble hydrograph, at 900 m or 90 m resolution.",
+    ccHint: "QPE based products from the EF5 runs driven by observed " +
+      "satellite rainfall (IMERG and SCaMPR), combined at the model grid.",
+    ffHint: "QPF based products from the EF5 runs driven by the StormLab " +
+      "rainfall forecast ensemble (50 members).",
+    fimHint: "Flood map library of the Santa Ines Petapa pilot. " +
+      "Probability that water depth reaches each threshold, from the " +
+      "matched scenarios of all members (overbank view).",
+    fimNote: "Santa Ines Petapa pilot, 5 m grid. When several thresholds " +
+      "are on, the last one drawn covers the ones below it.",
+    qpeLabel: "Rainfall accumulation (IMERG + SCaMPR)",
+    footer: "University of Iowa IIHR and WMO. Basemaps: Esri, CARTO, " +
+      "OpenStreetMap contributors. Administrative and local layers: " +
+      "SEGEPLAN and INSIVUMEH datasets prepared for the UFFIS project.",
+    ctx: [
+      { id: "dept", label: "Department boundaries", kind: "dept", on: true,
+        file: "nat_departamentos.geojson",
+        info: "The 22 department boundaries, dashed lines." },
+      { id: "muni", label: "Municipality boundaries", kind: "muni", on: false,
+        file: "nat_municipios.geojson",
+        info: "The 343 municipio boundaries, thin dashed lines, with the name on hover." },
+      { id: "vul", label: "Municipal vulnerability (terciles)", kind: "vul", on: false,
+        file: "nat_municipios.geojson",
+        info: "SEGEPLAN municipal vulnerability index painted in terciles, darker purple is more vulnerable. Name and index on hover." },
+      { id: "roads", label: "Main roads", kind: "roads", on: false,
+        file: "nat_carreteras.geojson",
+        info: "Main road network, solid lines." },
+      { id: "fp", label: "Flood prone settlements", kind: "fp", on: false,
+        file: "nat_floodprone.geojson",
+        info: "Settlements classified with Alta or Muy Alta flood amenaza. Muy Alta is a black dot with a white rim, Alta a white dot with a black rim. Name, class and population on hover." },
+      { id: "cab", label: "Municipal capitals", kind: "cab", on: false,
+        file: "nat_cabeceras.geojson",
+        info: "The 340 municipal capital towns, small yellow dots." },
+      { id: "bridges", label: "Bridges (INSIVUMEH)", kind: "bridges", on: false,
+        file: "puentes.geojson",
+        info: "689 bridges from the INSIVUMEH dataset added for impact based forecasting. Municipio on hover." },
+      { id: "health", label: "Health centers (INSIVUMEH)", kind: "health", on: false,
+        file: "servicios_salud.geojson",
+        info: "3574 health facilities (health posts, health centers, convergence centers, IGSS and hospitals) from the INSIVUMEH dataset. Name and type on hover." },
+      { id: "basin", label: "90 m model basins", kind: "basin", on: true,
+        file: "basins_90m.geojson", basins: true,
+        info: "Outlines of the basins covered by the 90 m model. The pilot flood inundation and IBF products live inside these basins." },
+      { id: "gauges", label: "Streamflow gauges", kind: "gauges", on: true,
+        file: "gauges.geojson",
+        info: "Model output points. Click a gauge to open its ensemble hydrograph with the nowcast and forecast envelopes at 900 m or 90 m." }
+    ]
+  },
+  comoros: {
+    label: "Comoros",
+    gis: "gis_comoros",
+    view: { center: [-11.88, 43.885], zoom: 9 },
+    baseLabel: "Comoros 30 m",
+    about: "Products from the TITO and EF5 forecast chain of the UFFIS " +
+      "project for the Comoros. Current conditions use the STREAM-Sat " +
+      "satellite rainfall runs, the flood forecast uses the StormLab " +
+      "rainfall ensemble. Flood inundation and IBF come from the pluvial " +
+      "flood map library of the Moimbassa (Moheli) FIM site.",
+    ccHint: "QPE based products from the EF5 runs driven by observed " +
+      "satellite rainfall (STREAM-Sat), combined at the 30 m model grid.",
+    ffHint: "QPF based products from the EF5 runs driven by the StormLab " +
+      "rainfall forecast ensemble.",
+    fimHint: "Flood map library of the Moimbassa (Moheli) FIM site. " +
+      "Probability that water depth reaches each threshold, from the " +
+      "matched scenarios of all members (overbank view).",
+    fimNote: "Moimbassa (Moheli) FIM site, 30 m grid. When several " +
+      "thresholds are on, the last one drawn covers the ones below it.",
+    qpeLabel: "Rainfall accumulation (STREAM-Sat)",
+    footer: "University of Iowa IIHR and WMO. Basemaps: Esri, CARTO, " +
+      "OpenStreetMap contributors. FIM site outlines from the TITO " +
+      "Comoros FIM configuration.",
+    ctx: [
+      { id: "fimsite", label: "FIM site outline (Moimbassa)", kind: "outline",
+        on: true, file: "fim_site.geojson",
+        info: "Outline of the Moimbassa (Moheli) FIM site that the flood inundation products of these cycles were run for." },
+      { id: "fimall", label: "FIM communes (55)", kind: "outline", on: false,
+        file: "fim_communes.geojson",
+        info: "All 55 Comoros communes of the FIM flood map library. Products are published for the active FIM site only." }
+    ]
+  }
+};
 
 /* ------------------------------------------------------------------ map */
 var map = L.map("map", { zoomControl: true, minZoom: 6, preferCanvas: true })
@@ -428,21 +541,22 @@ function refreshLegend() {
   var box = document.getElementById("legend");
   if (!manifest) { box.style.display = "none"; return; }
   var L_ = manifest.legends, html = "";
+  var def = regionDef();
+  var base = manifest.base_label || def.baseLabel || "Base";
   if (state.seg === "cc" || state.seg === "ff") {
     var lg = L_[state.product[state.seg]];
     html = "<b>" + lg.title + "</b>" + legendRows(lg.colors, lg.labels, state.product[state.seg]) +
       '<div class="note">Ensemble ' + state.stat + " of the " +
       (state.seg === "cc" ? "satellite rainfall runs" : "StormLab runs") +
-      ". " + (state.domain === "national" ?
-        "National 900 m grid." :
-        "National 900 m grid with the 90 m model on top.") + "</div>";
+      ". " + base + " grid" + (state.domain === "national" ? "." :
+        " with the higher resolution model on top.") + "</div>";
   } else if (state.seg === "fim") {
     var on = ["10", "30", "70", "100"].filter(function (t) { return state.fimOn[t]; });
     html = "<b>" + L_.fimprob.title + "</b>" +
       legendRows(L_.fimprob.colors, L_.fimprob.labels, "fimprob") +
       '<div class="note">Thresholds on: ' +
       (on.length ? on.map(function (t) { return (t / 100).toFixed(2) + " m"; }).join(", ") : "none") +
-      ". Santa Ines Petapa pilot, 5 m grid. When several thresholds are on, the last one drawn covers the ones below it.</div>";
+      ". " + (def.fimNote || "") + "</div>";
   } else {
     html = "<b>" + L_.ibf.title + "</b>" + legendRows(L_.ibf.colors, L_.ibf.labels, "ibf") +
       '<div class="note">Worst matrix cell per grid cell across the minor (0.10 m), significant (0.30 m) and severe (0.70 m) depth thresholds.</div>';
@@ -452,11 +566,19 @@ function refreshLegend() {
 }
 
 /* -------------------------------------------------------- panel builds */
+function hintFor(seg) {
+  var def = regionDef();
+  if (seg === "cc" && def.ccHint) return def.ccHint;
+  if (seg === "ff" && def.ffHint) return def.ffHint;
+  if (seg === "fim" && def.fimHint) return def.fimHint;
+  return SEGMENTS[seg].hint;
+}
 function buildLayerList() {
+  var def = regionDef();
   var list = document.getElementById("layerList");
   var statBlock = document.getElementById("statBlock");
   list.innerHTML = "";
-  document.getElementById("segHint").textContent = SEGMENTS[state.seg].hint;
+  document.getElementById("segHint").textContent = hintFor(state.seg);
 
   function infoSpan(text) {
     return el("span", { class: "info", title: text }, "i");
@@ -471,7 +593,8 @@ function buildLayerList() {
         state.product[state.seg] = p[0]; refreshProduct();
       });
       row.appendChild(inp);
-      row.appendChild(el("span", {}, p[1]));
+      row.appendChild(el("span", {},
+        (p[0] === "qpeaccum" && def.qpeLabel) ? def.qpeLabel : p[1]));
       if (p[2]) row.appendChild(infoSpan(p[2]));
       list.appendChild(row);
     });
@@ -522,48 +645,33 @@ function buildLayerList() {
 
 /* --------------------------------------------------- context vector set */
 var VUL_COLORS = ["#EFEDF5", "#BCBDDC", "#756BB1"];
-var ctxDefs = [
-  { id: "dept", label: "Department boundaries", on: true,
-    info: "The 22 department boundaries, dashed lines." },
-  { id: "muni", label: "Municipality boundaries", on: false,
-    info: "The 343 municipio boundaries, thin dashed lines, with the name on hover." },
-  { id: "vul", label: "Municipal vulnerability (terciles)", on: false,
-    info: "SEGEPLAN municipal vulnerability index painted in terciles, darker purple is more vulnerable. Name and index on hover." },
-  { id: "roads", label: "Main roads", on: false,
-    info: "Main road network, solid lines." },
-  { id: "fp", label: "Flood prone settlements", on: false,
-    info: "Settlements classified with Alta or Muy Alta flood amenaza. Muy Alta is a black dot with a white rim, Alta a white dot with a black rim. Name, class and population on hover." },
-  { id: "cab", label: "Municipal capitals", on: false,
-    info: "The 340 municipal capital towns, small yellow dots." },
-  { id: "bridges", label: "Bridges (INSIVUMEH)", on: false,
-    info: "689 bridges from the INSIVUMEH dataset added for impact based forecasting. Municipio on hover." },
-  { id: "health", label: "Health centers (INSIVUMEH)", on: false,
-    info: "3574 health facilities (health posts, health centers, convergence centers, IGSS and hospitals) from the INSIVUMEH dataset. Name and type on hover." },
-  { id: "basin", label: "90 m model basins", on: true,
-    info: "Outlines of the basins covered by the 90 m model. The pilot flood inundation and IBF products live inside these basins." },
-  { id: "gauges", label: "Streamflow gauges", on: true,
-    info: "Model output points. Click a gauge to open its ensemble hydrograph with the nowcast and forecast envelopes at 900 m or 90 m." }
-];
+var activeCtx = [];   // context defs of the loaded region
 var ctxLayers = {};   // id -> layer
 var ctxData = {};     // id -> geojson
 var vulCuts = null;
 
+function regionDef() {
+  return REGION_DEFS[state.region] || REGION_DEFS.guatemala;
+}
+
 function boundaryColor() { return state.basemap === "sat" ? "#FFFFFF" : "#5b6470"; }
 function roadColor() { return state.basemap === "sat" ? "#FFFFFF" : "#4B5563"; }
 
-function styleCtx(id) {
-  if (id === "dept") return { color: boundaryColor(), weight: 2.2,
-                              fill: false, dashArray: "8 5", opacity: 0.9 };
-  if (id === "muni") return { color: boundaryColor(), weight: 1,
-                              fill: false, dashArray: "4 4", opacity: 0.8 };
-  if (id === "roads") return { color: roadColor(), weight: 2, opacity: 0.9 };
-  if (id === "basin") return { color: state.basemap === "sat" ? "#FFFFFF" : "#111111",
-                               weight: 3, fill: false, dashArray: "10 6" };
+function styleCtx(d) {
+  if (d.kind === "dept") return { color: boundaryColor(), weight: 2.2,
+                                  fill: false, dashArray: "8 5", opacity: 0.9 };
+  if (d.kind === "muni") return { color: boundaryColor(), weight: 1,
+                                  fill: false, dashArray: "4 4", opacity: 0.8 };
+  if (d.kind === "roads") return { color: roadColor(), weight: 2, opacity: 0.9 };
+  if (d.kind === "basin" || d.kind === "outline")
+    return { color: state.basemap === "sat" ? "#FFFFFF" : "#111111",
+             weight: d.kind === "basin" ? 3 : 2.5, fill: false,
+             dashArray: "10 6" };
   return {};
 }
 
-function makeCtxLayer(id, gj) {
-  if (id === "vul") {
+function makeCtxLayer(d, gj) {
+  if (d.kind === "vul") {
     var vals = gj.features.map(function (f) { return f.properties.iv; })
       .filter(function (v) { return v !== null && v !== undefined; })
       .sort(function (a, b) { return a - b; });
@@ -581,7 +689,7 @@ function makeCtxLayer(id, gj) {
       }
     });
   }
-  if (id === "fp") {
+  if (d.kind === "fp") {
     return L.geoJSON(gj, {
       filter: function (f) {
         return f.properties.a === "Alta" || f.properties.a === "Muy Alta";
@@ -597,7 +705,7 @@ function makeCtxLayer(id, gj) {
       }
     });
   }
-  if (id === "cab") {
+  if (d.kind === "cab") {
     return L.geoJSON(gj, {
       pointToLayer: function (f, ll) {
         return L.circleMarker(ll, {
@@ -607,7 +715,7 @@ function makeCtxLayer(id, gj) {
       }
     });
   }
-  if (id === "bridges") {
+  if (d.kind === "bridges") {
     return L.geoJSON(gj, {
       pointToLayer: function (f, ll) {
         return L.circleMarker(ll, {
@@ -618,7 +726,7 @@ function makeCtxLayer(id, gj) {
       }
     });
   }
-  if (id === "health") {
+  if (d.kind === "health") {
     return L.geoJSON(gj, {
       pointToLayer: function (f, ll) {
         return L.circleMarker(ll, {
@@ -629,7 +737,7 @@ function makeCtxLayer(id, gj) {
       }
     });
   }
-  if (id === "gauges") {
+  if (d.kind === "gauges") {
     return L.geoJSON(gj, {
       pointToLayer: function (f, ll) {
         var m = L.circleMarker(ll, {
@@ -642,15 +750,16 @@ function makeCtxLayer(id, gj) {
       }
     });
   }
-  if (id === "basin") {
-    var lyr0 = L.geoJSON(gj, { style: function () { return styleCtx(id); } });
+  if (d.kind === "basin" || d.kind === "outline") {
+    var lyr0 = L.geoJSON(gj, { style: function () { return styleCtx(d); } });
     lyr0.eachLayer(function (l) {
-      if (l.feature) l.bindTooltip(l.feature.properties.name);
+      if (l.feature && l.feature.properties.name)
+        l.bindTooltip(l.feature.properties.name);
     });
     return lyr0;
   }
-  var lyr = L.geoJSON(gj, { style: function () { return styleCtx(id); } });
-  if (id === "muni") {
+  var lyr = L.geoJSON(gj, { style: function () { return styleCtx(d); } });
+  if (d.kind === "muni") {
     lyr.eachLayer(function (l) {
       if (l.feature) l.bindTooltip(l.feature.properties.m);
     });
@@ -659,13 +768,18 @@ function makeCtxLayer(id, gj) {
 }
 
 function loadCtx() {
-  var files = { dept: "nat_departamentos", muni: "nat_municipios",
-                vul: "nat_municipios", roads: "nat_carreteras",
-                fp: "nat_floodprone", cab: "nat_cabeceras",
-                bridges: "puentes", health: "servicios_salud",
-                basin: "basins_90m", gauges: "gauges" };
+  var def = regionDef();
+  var token = (loadCtx.token = (loadCtx.token || 0) + 1);
+  activeCtx = def.ctx || [];
+  ctxLayers = {};
+  ctxData = {};
+  vulCuts = null;
+  basins = [];
+  contextGroup.clearLayers();
   var list = document.getElementById("ctxList");
-  ctxDefs.forEach(function (d) {
+  list.innerHTML = "";
+  buildDomainSwitch();
+  activeCtx.forEach(function (d) {
     var row = el("label", { class: "row" });
     var inp = el("input", { type: "checkbox" });
     inp.checked = d.on;
@@ -676,13 +790,14 @@ function loadCtx() {
     row.appendChild(el("span", {}, d.label));
     if (d.info) row.appendChild(el("span", { class: "info", title: d.info }, "i"));
     list.appendChild(row);
-    fetch("data/gis/" + files[d.id] + ".geojson")
+    fetch("data/" + def.gis + "/" + d.file)
       .then(function (r) { return r.json(); })
       .then(function (gj) {
+        if (token !== loadCtx.token) return;   // region switched mid load
         ctxData[d.id] = gj;
-        ctxLayers[d.id] = makeCtxLayer(d.id, gj);
+        ctxLayers[d.id] = makeCtxLayer(d, gj);
         syncCtx(d.id);
-        if (d.id === "basin") {
+        if (d.basins) {
           basins = gj.features.map(function (f) {
             return { id: f.properties.id, name: f.properties.name,
                      bounds: L.geoJSON(f).getBounds() };
@@ -693,15 +808,16 @@ function loadCtx() {
   });
 }
 function syncCtx(id) {
-  var d = ctxDefs.find(function (x) { return x.id === id; });
+  var d = activeCtx.find(function (x) { return x.id === id; });
   var lyr = ctxLayers[id];
-  if (!lyr) return;
+  if (!d || !lyr) return;
   if (d.on && !contextGroup.hasLayer(lyr)) contextGroup.addLayer(lyr);
   if (!d.on && contextGroup.hasLayer(lyr)) contextGroup.removeLayer(lyr);
 }
 function restyleCtx() {
-  ["dept", "muni", "roads", "basin"].forEach(function (id) {
-    if (ctxLayers[id]) ctxLayers[id].setStyle(styleCtx(id));
+  activeCtx.forEach(function (d) {
+    if (["dept", "muni", "roads", "basin", "outline"].indexOf(d.kind) >= 0 &&
+        ctxLayers[d.id]) ctxLayers[d.id].setStyle(styleCtx(d));
   });
 }
 
@@ -885,15 +1001,23 @@ document.getElementById("tabs").addEventListener("click", function (ev) {
                            manifest.ibf["warning_level.png"]);
     if (any) map.flyToBounds(boundsLL(any.bounds), { duration: 0.8, padding: [30, 30] });
   } else if (state.domain === "national") {
-    map.flyTo(NATIONAL_VIEW.center, NATIONAL_VIEW.zoom, { duration: 0.8 });
+    map.flyTo(regionView.center, regionView.zoom, { duration: 0.8 });
   }
 });
 
 /* ------------------------------------------------------- domain switch */
 function buildDomainSwitch() {
   var box = document.getElementById("domainSwitch");
+  var sect = document.getElementById("domainSection");
   box.innerHTML = "";
-  var defs = [{ id: "national", name: "National 900 m" }].concat(
+  if (!basins.length) {
+    sect.style.display = "none";   // single grid region: nothing to switch
+    return;
+  }
+  sect.style.display = "";
+  var def = regionDef();
+  var base = (manifest && manifest.base_label) || def.baseLabel || "Base";
+  var defs = [{ id: "national", name: base }].concat(
     basins.map(function (b) { return { id: b.id, name: b.name + " 90 m" }; }));
   defs.forEach(function (d) {
     var btn = document.createElement("button");
@@ -917,7 +1041,7 @@ function setDomain(id, quiet) {
       document.querySelector('#tabs button[data-seg="cc"]').click();
       return;
     }
-    map.flyTo(NATIONAL_VIEW.center, NATIONAL_VIEW.zoom, { duration: 0.8 });
+    map.flyTo(regionView.center, regionView.zoom, { duration: 0.8 });
   } else {
     var b = basins.find(function (x) { return x.id === id; });
     if (b) map.flyToBounds(b.bounds, { duration: 0.8, padding: [30, 30] });
@@ -957,28 +1081,129 @@ document.getElementById("openPanel").addEventListener("click", function () {
   document.getElementById("openPanel").style.display = "none";
 });
 
+/* ------------------------------------------------------------ cycles ui */
+function cyclesOf(region) {
+  return cycleIndex.filter(function (e) { return e.region === region; })
+    .map(function (e) { return e.cycle; });
+}
+function cyclePretty(c) {
+  var t = c.replace(".", " ");
+  return t.slice(0, 4) + "-" + t.slice(4, 6) + "-" + t.slice(6, 8) +
+    " " + t.slice(9, 11) + ":" + t.slice(11, 13) + " UTC";
+}
+function buildSelectors() {
+  var regions = [];
+  cycleIndex.forEach(function (e) {
+    if (regions.indexOf(e.region) < 0) regions.push(e.region);
+  });
+  var rsel = document.getElementById("regionSel");
+  rsel.innerHTML = "";
+  regions.forEach(function (r) {
+    var o = document.createElement("option");
+    o.value = r;
+    o.textContent = (REGION_DEFS[r] && REGION_DEFS[r].label) || r;
+    rsel.appendChild(o);
+  });
+  document.getElementById("regionWrap").style.display =
+    regions.length > 1 ? "" : "none";
+  rsel.value = state.region;
+  rsel.addEventListener("change", function () { selectRegion(rsel.value); });
+  fillCycleSel(state.region);
+}
+function fillCycleSel(region) {
+  var csel = document.getElementById("cycleSel");
+  csel.innerHTML = "";
+  cyclesOf(region).forEach(function (c) {
+    var o = document.createElement("option");
+    o.value = c;
+    o.textContent = cyclePretty(c);
+    csel.appendChild(o);
+  });
+  csel.onchange = function () { loadCycle(csel.value); };
+}
+function selectRegion(region) {
+  state.region = region;
+  fillCycleSel(region);
+  var list = cyclesOf(region);
+  if (list.length) loadCycle(list[0]);
+}
+
+function viewForManifest(m) {
+  if (m.view && m.view.center) return m.view;
+  var def = REGION_DEFS[m.region];
+  if (def && def.view) return def.view;
+  for (var k in m.ef5) {
+    var b = m.ef5[k].bounds;
+    var span = Math.max(b[2] - b[0], b[3] - b[1]);
+    return { center: [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2],
+             zoom: Math.max(6, Math.min(10,
+               Math.round(8 - Math.log2(Math.max(span, 0.001)) / 2))) };
+  }
+  return { center: regionView.center, zoom: regionView.zoom };
+}
+
+function loadCycle(c) {
+  cycle = c;
+  fetch("data/" + c + "/manifest.json")
+    .then(function (r) { return r.json(); })
+    .then(applyManifest)
+    .catch(function (e) {
+      document.getElementById("cycleChip").textContent =
+        "Could not load the cycle data: " + e;
+    });
+}
+
+function applyManifest(m) {
+  manifest = m;
+  state.region = m.region || state.region;
+  state.domain = "national";
+  var def = REGION_DEFS[state.region] || REGION_DEFS.guatemala;
+  regionView = viewForManifest(m);
+  document.getElementById("titleSub").textContent =
+    "Urban Flash Flood Information and Forecasting System - " +
+    (def.label || m.region_label || "");
+  document.getElementById("aboutBox").textContent = def.about || "";
+  document.getElementById("footerNote").textContent = def.footer || "";
+  document.getElementById("regionSel").value = state.region;
+  document.getElementById("cycleSel").value = cycle;
+  var chip = "Forecast cycle: <b>" + cyclePretty(cycle) + "</b>";
+  if (m.fim && m.fim.summary) {
+    chip += "<br>Trigger max UQ " + m.fim.summary.max_uq +
+            " (threshold 1.0)";
+    if (m.fim.summary.members_used)
+      chip += ", " + m.fim.summary.members_used + " FIM members";
+  }
+  document.getElementById("cycleChip").innerHTML = chip;
+  buildLayerList();
+  refreshProduct();
+  loadCtx();
+  map.flyTo(regionView.center, regionView.zoom, { duration: 0.6 });
+}
+
 /* --------------------------------------------------------------- boot */
 fetch("data/cycles.json")
   .then(function (r) { return r.json(); })
   .then(function (cycles) {
-    cycle = cycles[0];
-    return fetch("data/" + cycle + "/manifest.json");
+    return Promise.all(cycles.map(function (c) {
+      return fetch("data/" + c + "/manifest.json")
+        .then(function (r) { return r.json(); })
+        .then(function (m) {
+          return { cycle: c, region: m.region || "guatemala" };
+        })
+        .catch(function () { return { cycle: c, region: "guatemala" }; });
+    }));
   })
-  .then(function (r) { return r.json(); })
-  .then(function (m) {
-    manifest = m;
-    var t = cycle.replace(".", " ");
-    var pretty = t.slice(0, 4) + "-" + t.slice(4, 6) + "-" + t.slice(6, 8) +
-      " " + t.slice(9, 11) + ":" + t.slice(11, 13) + " UTC";
-    var chip = "Forecast cycle: <b>" + pretty + "</b>";
-    if (m.fim.summary) {
-      chip += "<br>Trigger max UQ " + m.fim.summary.max_uq + " (threshold 1.0), " +
-              m.fim.summary.members_used + " FIM members";
-    }
-    document.getElementById("cycleChip").innerHTML = chip;
-    buildLayerList();
-    refreshProduct();
-    loadCtx();
+  .then(function (entries) {
+    cycleIndex = entries;
+    var regions = [];
+    entries.forEach(function (e) {
+      if (regions.indexOf(e.region) < 0) regions.push(e.region);
+    });
+    state.region = regions.indexOf(DEFAULT_REGION) >= 0 ?
+      DEFAULT_REGION : regions[0];
+    buildSelectors();
+    var list = cyclesOf(state.region);
+    loadCycle(list[0]);
   })
   .catch(function (e) {
     document.getElementById("cycleChip").textContent =

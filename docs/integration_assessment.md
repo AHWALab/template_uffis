@@ -144,7 +144,9 @@ ship, the same two receptor groups arrive classified by warning level.
 
 ## 9. Summary of next integration steps, in order of effort
 
-1. Cycle dropdown when more than one cycle exists.
+1. DONE (Sep 2026): region and cycle dropdowns in the header. The page
+   lists every cycle of data/cycles.json grouped by region and opens the
+   first cycle of the deployment default (DEFAULT_REGION in index.html).
 2. likelihood_class layers in segment 3.
 3. Per-gauge peak statistics in the hydrograph modal.
 4. IBF receptor products (now including bridges and health centers) once
@@ -156,3 +158,25 @@ ship, the same two receptor groups arrive classified by warning level.
 
 Note: producing warning polygons in or for the viewer is off the table by
 decision; the viewer displays only what TITO writes.
+
+## 10. Comoros integration (Sep 2026)
+
+The 20251225 11:00-13:00 cycles came from the Comoros 30 m deployment
+(STREAM-Sat QPE + 5 member StormLab QPF, one model grid). Differences
+from Guatemala handled by prepare_cycle.py:
+
+- One domain only (`comoros_30m`), so the viewer hides the domain switch
+  and derives the base label from the manifest (`base_label`).
+- FIM lives under `fim/stream_sat_stormlab/pluvial_overbank` (pluvial
+  hazards only); the script selects the first existing variant of
+  combined_overbank, pluvial_overbank, combined, pluvial.
+- The FIM WKT is a bare LOCAL_CS (Moznet / UTM zone 38S), so the
+  geographic bounds use a local UTM inverse fallback.
+- No gauge time series on the stored cycles, so the Comoros context
+  layers are the FIM site outline and the 55 FIM communes instead of the
+  Guatemala administrative set (scripts/prepare_comoros_gis.py).
+
+Data caveat: the cycles were run on the Moimbassa (KM323) FIM store grid,
+which matches their rasters exactly, while pf_summary.json reports region
+Comoros_Vouani. The viewer frames the products with the Moimbassa
+outline; the summary label is worth checking upstream.

@@ -1,0 +1,394 @@
+{
+ "cycle": "20251225.120000",
+ "region": "comoros",
+ "region_label": "Comoros",
+ "ef5": {
+  "qpeaccum_nowcast_min_n.png": {
+   "bounds": [
+    -12.392083333333336,
+    43.22875,
+    -11.365416666666667,
+    44.54069444444445
+   ],
+   "product": "qpeaccum",
+   "mode": "nowcast",
+   "stat": "min",
+   "domain": "n"
+  },
+  "qpeaccum_nowcast_median_n.png": {
+   "bounds": [
+    -12.392083333333336,
+    43.22875,
+    -11.365416666666667,
+    44.54069444444445
+   ],
+   "product": "qpeaccum",
+   "mode": "nowcast",
+   "stat": "median",
+   "domain": "n"
+  },
+  "qpeaccum_nowcast_max_n.png": {
+   "bounds": [
+    -12.392083333333336,
+    43.22875,
+    -11.365416666666667,
+    44.54069444444445
+   ],
+   "product": "qpeaccum",
+   "mode": "nowcast",
+   "stat": "max",
+   "domain": "n"
+  },
+  "qpeaccum_forecast_min_n.png": {
+   "bounds": [
+    -12.392083333333336,
+    43.22875,
+    -11.365416666666667,
+    44.54069444444445
+   ],
+   "product": "qpeaccum",
+   "mode": "forecast",
+   "stat": "min",
+   "domain": "n"
+  },
+  "qpeaccum_forecast_median_n.png": {
+   "bounds": [
+    -12.392083333333336,
+    43.22875,
+    -11.365416666666667,
+    44.54069444444445
+   ],
+   "product": "qpeaccum",
+   "mode": "forecast",
+   "stat": "median",
+   "domain": "n"
+  },
+  "qpeaccum_forecast_max_n.png": {
+   "bounds": [
+    -12.392083333333336,
+    43.22875,
+    -11.365416666666667,
+    44.54069444444445
+   ],
+   "product": "qpeaccum",
+   "mode": "forecast",
+   "stat": "max",
+   "domain": "n"
+  },
+  "maxunitq_nowcast_min_n.png": {
+   "bounds": [
+    -12.392083333333336,
+    43.22875,
+    -11.365416666666667,
+    44.54069444444445
+   ],
+   "product": "maxunitq",
+   "mode": "nowcast",
+   "stat": "min",
+   "domain": "n"
+  },
+  "maxunitq_nowcast_median_n.png": {
+   "bounds": [
+    -12.392083333333336,
+    43.22875,
+    -11.365416666666667,
+    44.54069444444445
+   ],
+   "product": "maxunitq",
+   "mode": "nowcast",
+   "stat": "median",
+   "domain": "n"
+  },
+  "maxunitq_nowcast_max_n.png": {
+   "bounds": [
+    -12.392083333333336,
+    43.22875,
+    -11.365416666666667,
+    44.54069444444445
+   ],
+   "product": "maxunitq",
+   "mode": "nowcast",
+   "stat": "max",
+   "domain": "n"
+  },
+  "maxunitq_forecast_min_n.png": {
+   "bounds": [
+    -12.392083333333336,
+    43.22875,
+    -11.365416666666667,
+    44.54069444444445
+   ],
+   "product": "maxunitq",
+   "mode": "forecast",
+   "stat": "min",
+   "domain": "n"
+  },
+  "maxunitq_forecast_median_n.png": {
+   "bounds": [
+    -12.392083333333336,
+    43.22875,
+    -11.365416666666667,
+    44.54069444444445
+   ],
+   "product": "maxunitq",
+   "mode": "forecast",
+   "stat": "median",
+   "domain": "n"
+  },
+  "maxunitq_forecast_max_n.png": {
+   "bounds": [
+    -12.392083333333336,
+    43.22875,
+    -11.365416666666667,
+    44.54069444444445
+   ],
+   "product": "maxunitq",
+   "mode": "forecast",
+   "stat": "max",
+   "domain": "n"
+  },
+  "maxsm_nowcast_min_n.png": {
+   "bounds": [
+    -12.392083333333336,
+    43.22875,
+    -11.365416666666667,
+    44.54069444444445
+   ],
+   "product": "maxsm",
+   "mode": "nowcast",
+   "stat": "min",
+   "domain": "n"
+  },
+  "maxsm_nowcast_median_n.png": {
+   "bounds": [
+    -12.392083333333336,
+    43.22875,
+    -11.365416666666667,
+    44.54069444444445
+   ],
+   "product": "maxsm",
+   "mode": "nowcast",
+   "stat": "median",
+   "domain": "n"
+  },
+  "maxsm_nowcast_max_n.png": {
+   "bounds": [
+    -12.392083333333336,
+    43.22875,
+    -11.365416666666667,
+    44.54069444444445
+   ],
+   "product": "maxsm",
+   "mode": "nowcast",
+   "stat": "max",
+   "domain": "n"
+  },
+  "maxsm_forecast_min_n.png": {
+   "bounds": [
+    -12.392083333333336,
+    43.22875,
+    -11.365416666666667,
+    44.54069444444445
+   ],
+   "product": "maxsm",
+   "mode": "forecast",
+   "stat": "min",
+   "domain": "n"
+  },
+  "maxsm_forecast_median_n.png": {
+   "bounds": [
+    -12.392083333333336,
+    43.22875,
+    -11.365416666666667,
+    44.54069444444445
+   ],
+   "product": "maxsm",
+   "mode": "forecast",
+   "stat": "median",
+   "domain": "n"
+  },
+  "maxsm_forecast_max_n.png": {
+   "bounds": [
+    -12.392083333333336,
+    43.22875,
+    -11.365416666666667,
+    44.54069444444445
+   ],
+   "product": "maxsm",
+   "mode": "forecast",
+   "stat": "max",
+   "domain": "n"
+  }
+ },
+ "fim": {
+  "prob_ge_10cm.png": {
+   "bounds": [
+    -12.308864156336103,
+    43.62317906567364,
+    -12.24761168644376,
+    43.71399337108946
+   ],
+   "threshold_cm": 10
+  },
+  "prob_ge_30cm.png": {
+   "bounds": [
+    -12.308864156336103,
+    43.62317906567364,
+    -12.24761168644376,
+    43.71399337108946
+   ],
+   "threshold_cm": 30
+  },
+  "prob_ge_70cm.png": {
+   "bounds": [
+    -12.308864156336103,
+    43.62317906567364,
+    -12.24761168644376,
+    43.71399337108946
+   ],
+   "threshold_cm": 70
+  },
+  "prob_ge_100cm.png": {
+   "bounds": [
+    -12.308864156336103,
+    43.62317906567364,
+    -12.24761168644376,
+    43.71399337108946
+   ],
+   "threshold_cm": 100
+  },
+  "variant": "pluvial_overbank",
+  "summary": {
+   "triggered": false,
+   "max_uq": 0.3,
+   "runs_checked": 60,
+   "thresholds_m": [
+    0.1,
+    0.3,
+    0.7,
+    1.0
+   ]
+  }
+ },
+ "ibf": {
+  "warning_level.png": {
+   "bounds": [
+    -12.308864156336103,
+    43.62317906567364,
+    -12.24761168644376,
+    43.71399337108946
+   ]
+  },
+  "cell_counts": {
+   "Very low": 270,
+   "Low": 218,
+   "Medium": 145,
+   "High": 132
+  }
+ },
+ "legends": {
+  "qpeaccum": {
+   "title": "Rainfall accumulation (mm)",
+   "colors": [
+    "#B8E186",
+    "#66BD63",
+    "#1A9850",
+    "#FFFFBF",
+    "#FDAE61",
+    "#F46D43",
+    "#D73027",
+    "#A50026",
+    "#762A83"
+   ],
+   "labels": [
+    "1 to 5",
+    "5 to 10",
+    "10 to 25",
+    "25 to 50",
+    "50 to 75",
+    "75 to 100",
+    "100 to 150",
+    "150 to 250",
+    "250 and more"
+   ]
+  },
+  "maxunitq": {
+   "title": "Max unit streamflow (m3/s per km2)",
+   "colors": [
+    "#ACACAC",
+    "#C8CE33",
+    "#F79320",
+    "#BC3F34",
+    "#D14FC8",
+    "#2B2BD5",
+    "#FFFFFF"
+   ],
+   "labels": [
+    "0.1 to 1",
+    "1 to 2",
+    "2 to 4",
+    "4 to 6",
+    "6 to 10",
+    "10 to 20",
+    "20 and more"
+   ]
+  },
+  "maxsm": {
+   "title": "Soil saturation (percent)",
+   "colors": [
+    "#F6E8C3",
+    "#DFC27D",
+    "#80CDC1",
+    "#35978F",
+    "#01665E",
+    "#003C30"
+   ],
+   "labels": [
+    "10 to 30",
+    "30 to 50",
+    "50 to 70",
+    "70 to 85",
+    "85 to 95",
+    "95 to 100"
+   ]
+  },
+  "fimprob": {
+   "title": "Probability, fraction of members",
+   "colors": [
+    "#BFDBFE",
+    "#60A5FA",
+    "#2563EB",
+    "#7C3AED"
+   ],
+   "labels": [
+    "5 to 20 percent",
+    "20 to 50",
+    "50 to 80",
+    "80 to 100"
+   ]
+  },
+  "ibf": {
+   "title": "IBF warning level (FGS matrix)",
+   "colors": [
+    "#8DC63F",
+    "#FFF200",
+    "#F7941D",
+    "#ED1C24"
+   ],
+   "labels": [
+    "Very low",
+    "Low",
+    "Medium",
+    "High"
+   ]
+  }
+ },
+ "base_label": "Comoros 30 m",
+ "view": {
+  "center": [
+   -11.88,
+   43.885
+  ],
+  "zoom": 9
+ }
+}
