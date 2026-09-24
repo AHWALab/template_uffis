@@ -190,6 +190,8 @@
   #chartHover { font-size: 12px; color: #1f2937; min-height: 17px;
                 margin-top: 2px; font-variant-numeric: tabular-nums; }
   .leaflet-container { font-family: inherit; }
+  /* raster products are cell data: keep the cells crisp when magnified */
+  .leaflet-image-layer { image-rendering: pixelated; }
   @media (max-width: 720px) {
     :root { --panel-w: 280px; }
     .cycle-chip { display: none; }
@@ -255,9 +257,9 @@
       </div>
       <div class="op-row">
         <span>Opacity</span>
-        <input type="range" id="opacity" min="20" max="100" value="85"
+        <input type="range" id="opacity" min="20" max="100" value="100"
                title="Transparency of the forecast layer over the basemap">
-        <span id="opv">85</span>
+        <span id="opv">100</span>
       </div>
     </div>
 
@@ -314,7 +316,7 @@ var state = {
   stat: "median",
   fimOn: { "10": false, "30": true, "70": false, "100": false },
   ibfOn: true,
-  opacity: 0.85,
+  opacity: 1.0,
   basemap: "topo"
 };
 var manifest = null;
@@ -418,7 +420,10 @@ var REGION_DEFS = {
 };
 
 /* ------------------------------------------------------------------ map */
-var map = L.map("map", { zoomControl: true, minZoom: 6, preferCanvas: true })
+/* maxZoom is above the basemap native zoom (19) so the products can be
+   inspected cell by cell; the basemap tiles scale up beyond 19. */
+var map = L.map("map", { zoomControl: true, minZoom: 6, maxZoom: 21,
+                         preferCanvas: true })
   .setView([14.95, -90.65], 8);
 map.zoomControl.setPosition("topleft");
 L.control.scale({ imperial: false }).addTo(map);
@@ -426,13 +431,13 @@ L.control.scale({ imperial: false }).addTo(map);
 var basemaps = {
   topo: L.tileLayer(
     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
-    { attribution: "Esri World Topo Map", maxZoom: 19 }),
+    { attribution: "Esri World Topo Map", maxNativeZoom: 19, maxZoom: 21 }),
   sat: L.tileLayer(
     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    { attribution: "Esri World Imagery", maxZoom: 19 }),
+    { attribution: "Esri World Imagery", maxNativeZoom: 19, maxZoom: 21 }),
   light: L.tileLayer(
     "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    { attribution: "CARTO, OpenStreetMap contributors", maxZoom: 19 })
+    { attribution: "CARTO, OpenStreetMap contributors", maxNativeZoom: 19, maxZoom: 21 })
 };
 basemaps.topo.addTo(map);
 
@@ -764,7 +769,11 @@ function makeCtxLayer(d, gj) {
     var lyr0 = L.geoJSON(gj, { style: function () { return styleCtx(d); } });
     lyr0.eachLayer(function (l) {
       if (l.feature && l.feature.properties.name)
-        l.bindTooltip(l.feature.properties.name);
+        l.bindTooltip(l.feature.properties.name + " (click to zoom)");
+      l.on("click", function () {
+        map.flyToBounds(l.getBounds(), { duration: 0.6, padding: [20, 20],
+                                         maxZoom: 16 });
+      });
     });
     return lyr0;
   }

@@ -372,7 +372,8 @@ def main(raw_dir, data_dir, region=None):
             a, b, crs = read_grid(tif)
             probs[tt] = a
             name = f"prob_ge_{tt}cm.png"
-            save_png(colorize(a, PROB_EDGES, PROB_COLORS), out / "fim" / name)
+            save_png(colorize(a, PROB_EDGES, PROB_COLORS, alpha=235),
+                     out / "fim" / name)
             manifest["fim"][name] = {"bounds": bounds_4326(b, crs),
                                      "threshold_cm": int(tt)}
             print("fim", name, a.shape)
@@ -464,7 +465,7 @@ def main(raw_dir, data_dir, region=None):
         rgba = np.zeros(warn.shape + (4,), dtype=np.uint8)
         for level, color in enumerate(IBF_COLORS, start=1):
             r, g, bl = hex_to_rgb(color)
-            rgba[warn == level] = (r, g, bl, 215)
+            rgba[warn == level] = (r, g, bl, 235)
         save_png(rgba, out / "ibf" / "warning_level.png")
         tif = next(iter((fim_root).glob(f"prob_depth_ge_10cm{suffix}.*.tif")))
         _, b, crs = read_grid(tif)

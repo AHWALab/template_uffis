@@ -36,6 +36,18 @@ Every EF5 product has Min, Median and Max buttons (ensemble statistic).
 In Guatemala each layer shows the national 900 m grid with the 90 m
 domain drawn on top; in the Comoros there is a single 30 m grid.
 
+## Using the map
+
+- The map zooms to level 21. Above the basemap native zoom (19) the
+  basemap scales up while the raster products keep their cells crisp
+  (nearest-neighbour rendering), so single 30 m FIM cells stay readable.
+- Opacity starts at 100 percent; pull the slider down to compare the
+  products with the basemap underneath.
+- Click a basin, commune or triggered-site outline to zoom into it; the
+  FIM tab frames the mosaic of the triggered municipalities.
+- Turning several FIM thresholds on stacks them, the last one drawn
+  covers the lower ones; the legend names the visible bands.
+
 ## Repository layout
 
 ```
